@@ -6,8 +6,12 @@
 完成一个简化版的React。
 
 ## Guide
-* [简介]
+* [简介](/Guide/Introduction.md)
 * [实现自定义的渲染器]
 * [实现Fiber架构]
 * [实现事件处理]
 * [实现Suspense]
+
+## Links
+* [fresh-async-react](https://github.com/sw-yx/fresh-async-react)
+* [Hello World Custom React Renderer](https://medium.com/@agent_hunt/hello-world-custom-react-renderer-9a95b7cd04bc)
