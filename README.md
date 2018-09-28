@@ -1,14 +1,13 @@
 # learn-react
 
-Learn react fiber architecture, time slicing, suspense. Start from writing a simple custom renderer, then dive into the source code and
-simplifying the realization.
+学习React Fiber架构，理解如何实现时间分片（Time Slicing）和 Suspense.
 
 ## Motivation
-Try to figure out how React works internally by writing a simplified version of React
+完成一个简化版的React。
 
 ## Guide
-* [Introduction]
-* [Custom Renderer]
-* [Fiber Architecture]
-* [Event]
-* [Suspense]
+* [简介]
+* [实现自定义的渲染器]
+* [实现Fiber架构]
+* [实现事件处理]
+* [实现Suspense]
