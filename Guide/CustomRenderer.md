@@ -137,7 +137,7 @@ container其实就是一个Dom节点，组件会被渲染在它里面。
     registerServiceWorker();
 ```
 如果现在运行程序，会抛出如下错误
-![now error](Guide/Images/customRender_now.png)
+![now error](Images/customRender_now.PNG)
 原因是 reconciler 模块会使用 hostConfig 中定义的 now 函数。 所以我们往 hostConfig 中加入 now 函数：
 ```javascript
   const hostConfig = {
@@ -222,9 +222,62 @@ container其实就是一个Dom节点，组件会被渲染在它里面。
     }
 ```
 现在再运行项目
-![gif](Guide/Images/customRenderer.gif)
+![gif](Images/customRenderer.gif)
 
 ## 理解hostConfig
 
-hostConfig中所有的函数都会被reconciler模块用到，但是有些函数对我们来说不是很重要，因为我们实现的SimpleReact会忽略一些功能，包括context
+hostConfig 中所有的函数都会被 reconciler 模块用到，但是有些函数对我们来说不是很重要，因为我们实现的 SimpleReact 会忽略一些功能，包括 [Context API](https://reactjs.org/blog/2018/03/29/react-v-16-3.html)。
+所以在此，我不会深究 getRootHostContext 和 getChildHostContext 函数。另外 prepareForCommit 和 resetAfterCommit函数对我们这个简单的组件也不重要。shouldDeprioritizeSubtree 函数和 hidden 属性有关，这里直接返回 false。
+
+我会逐一介绍剩下的9个函数
+
+### now
+
+返回现在的时间
+
+### shouldSetTextContent
+
+判断组件的直接后代是否是文本或者数字
+
+### createInstance
+
+根据 type 创建 dom 节点， type 即为像 'div' 的等字符
+
+### finalizeInitialChildren
+
+设置 dom 节点的属性，需要注意的是简化了事件绑定，只能识别click事件。后面的事件处理章节将完善这部分逻辑
+
+### appendInitialChild 和 appendChildToContainer
+
+向 dom 节点中添加子节点
+
+### scheduleDeferredCallback
+
+重点是这个函数，它是实现时间分片的基础。我这里为了简化直接调用了 [requestIdleCallback](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback)。React有它自己的实现
+[unstable_scheduleCallback](https://github.com/facebook/react/blob/master/packages/scheduler/src/Scheduler.js).
+
+实现这个函数的目的就是在浏览器空闲时期完成相应的计算工作，这和Fiber架构息息相关，我将会在下一章节讨论这些问题。
+
+### prepareUpdate 和 commitUpdate
+
+这两个函数将会在组件更新的过程中扮演重要的角色。prepareUpdate 判断组件更新前后 props 是否有变化,
+在我们这个简单组件的例子中主要是判断 props.children，即判断更新前后组件的后代是否发生了变化。将变化保存起来。
+commitUpdate 会真的应用这些变化，同样在我们的例子中，只考虑children的变化，所以设置 dom 节点的 textContent
+属性为新的后代。
+
+## 结论
+
+hostConfig 并没有完全完成。当我们实现了 reconciler 模块的时候，将去掉一些不必要的函数， 加入一些必要的函数。
+同时我需要在这里强调为了简化代码而做出的假设：
+
+**当我们考虑组件更新的时候，发生变化的只是文本节点**
+
+这简化了 prepareUpdate 和 commitUpdate 的逻辑， 因为我们不需要考虑各种属性的变化， style 的变化等等。
+
+对于 Fiber 架构， 目前为止我们只知道 reconciler 模块将使用 scheduleDeferredCallback 来实现时间分片。
+
+[下一章节](Fiber.md)
+
+
+
 
