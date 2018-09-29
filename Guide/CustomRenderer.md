@@ -11,7 +11,7 @@ What's More
 
 ## 怎样写一个自定义的渲染器
 
-上面的项目已经包含了如何写一个渲染器的教程，你可以选择通过阅读它来完成自己的Renderer。但是我的目标是在浏览器环境中调试React， 所以我需要的是一个简单的DomRenderer。我发现上面的教程对我来说仍然不够简单直接。
+上面的项目已经包含了如何写一个渲染器的教程，你可以选择通过阅读它来完成自己的 Renderer。但是我的目标是在浏览器环境中调试 React， 所以我需要的是一个简单的 DomRenderer。我发现上面的教程对我来说仍然不够简单直接。
 
 [Hello World Custom React Renderer](https://medium.com/@agent_hunt/hello-world-custom-react-renderer-9a95b7cd04bc)
 
@@ -137,7 +137,9 @@ container其实就是一个Dom节点，组件会被渲染在它里面。
     registerServiceWorker();
 ```
 如果现在运行程序，会抛出如下错误
+
 ![now error](Images/customRender_now.PNG)
+
 原因是 reconciler 模块会使用 hostConfig 中定义的 now 函数。 所以我们往 hostConfig 中加入 now 函数：
 ```javascript
   const hostConfig = {
@@ -221,7 +223,9 @@ container其实就是一个Dom节点，组件会被渲染在它里面。
       }
     }
 ```
+
 现在再运行项目
+
 ![gif](Images/customRenderer.gif)
 
 ## 理解hostConfig
@@ -277,7 +281,3 @@ hostConfig 并没有完全完成。当我们实现了 reconciler 模块的时候
 对于 Fiber 架构， 目前为止我们只知道 reconciler 模块将使用 scheduleDeferredCallback 来实现时间分片。
 
 [下一章节](Fiber.md)
-
-
-
-
