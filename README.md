@@ -7,7 +7,7 @@
 
 ## Guide
 * [简介](/Guide/Introduction.md)
-* [实现自定义的渲染器]
+* [实现自定义的渲染器](/Guide/CustomRenderer.md)
 * [实现Fiber架构]
 * [实现事件处理]
 * [实现Suspense]
