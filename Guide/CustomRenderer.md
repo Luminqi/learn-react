@@ -137,7 +137,7 @@ container其实就是一个Dom节点，组件会被渲染在它里面。
     registerServiceWorker();
 ```
 如果现在运行程序，会抛出如下错误
-![now error](/Images/customRender_now.png)
+![now error](Guide/Images/customRender_now.png)
 原因是 reconciler 模块会使用 hostConfig 中定义的 now 函数。 所以我们往 hostConfig 中加入 now 函数：
 ```javascript
   const hostConfig = {
@@ -222,7 +222,7 @@ container其实就是一个Dom节点，组件会被渲染在它里面。
     }
 ```
 现在再运行项目
-![gif](/Images/customRenderer.gif)
+![gif](Guide/Images/customRenderer.gif)
 
 ## 理解hostConfig
 
