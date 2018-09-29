@@ -17,6 +17,54 @@ What's More
 这篇文章（需要翻墙）论述了如何写一个非常简单的 DomRenderer。我强烈建议你自己通过文章里的方法构建一个自己的DomRenderer，因为很可能最终得到的结果和我有所不同（我的结果也和文章里的有区别）。
 
 **简单的说一下步骤：**
-l. 用 [create-react-app](https://github.com/facebook/create-react-app) 初始化一个项目
-l. 在 App.js 写一个简单的组件
+
+1. 用 [create-react-app](https://github.com/facebook/create-react-app) 初始化一个项目
+2. 在 App.js 写一个简单的组件
+    import React, { Component } from 'react';
+    import logo from './logo.svg';
+    import './App.css';
+
+    class App extends Component {
+      constructor(props) {
+        super(props);
+        this.state = {
+          counter: 0,
+          value: ''
+        };
+      }
+
+      handleChange = (event) => {
+        this.setState({value: event.target.value});
+      }
+
+      render() {
+        return (
+          <div className="App">
+            <header className="App-header">
+              <img src={logo} className="App-logo" alt="logo" />
+              <h1 className="App-title">Welcome to React</h1>
+            </header>
+            <div className="App-intro">
+              <div className="button-container">
+                <button
+                  className="decrement-button"
+                  onClick={() => this.setState({ counter: this.state.counter - 1 })}
+                >
+                  -
+                </button>
+                <div className="counter-text">{this.state.counter}</div>
+                <button
+                  className="increment-button"
+                  onClick={() => this.setState({ counter: this.state.counter + 1 })}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    export default App;
 
