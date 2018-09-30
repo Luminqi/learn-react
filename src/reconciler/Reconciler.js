@@ -13,7 +13,6 @@ import { isInteractiveEvent, registrationNames } from './isInteractiveEvent'
 import {
   ClassComponent,
   HostRoot, // Root of a host tree. Could be nested inside another node.
-  HostText,
   HostComponent,
   PlaceholderComponent
 } from '../shared/ReactWorkTags'
@@ -1010,18 +1009,8 @@ function useFiber (fiber, pendingProps, expirationTime) {
   clone.sibling = null
   return clone
 }
-function createFiberFromText (content, expirationTime) {
-  let fiber = new FiberNode(HostText, content, null)
-  fiber.expirationTime = expirationTime
-  return fiber
-}
-
 function createChild (returnFiber, newChild, expirationTime) {
-  if (typeof newChild === 'string' || typeof newChild === 'number') {
-    let created = createFiberFromText('' + newChild, expirationTime)
-    created.return = returnFiber
-    return created
-  } 
+  console.log('createChild')
   if (typeof newChild === 'object' && newChild !== null) {
     let created = createFiberFromElement(newChild, expirationTime)
     created.return = returnFiber
@@ -1030,21 +1019,8 @@ function createChild (returnFiber, newChild, expirationTime) {
   return null
 }
 
-function updateTextNode (returnFiber, current, textContent, expirationTime) {
-  if (current !== null && current.type === HostText) {
-    // Update
-    const existing =  useFiber(current, textContent, expirationTime)
-    existing.return = returnFiber
-    return existing
-  } else {
-    // Insert
-    let created = createFiberFromText(textContent, expirationTime)
-    created.return = returnFiber
-    return created
-  }
-}
-
 function updateElement (returnFiber, current, element, expirationTime) {
+  console.log('updateElement')
   if (current !== null && current.type === element.type) {
     // Update
     const existing = useFiber(current, element.props, expirationTime)
@@ -1059,9 +1035,7 @@ function updateElement (returnFiber, current, element, expirationTime) {
 }
 
 function updateSlot (returnFiber, oldFiber, newChild, expirationTime) {
-  if (typeof newChild === 'string' || typeof newChild === 'number') {
-    return updateTextNode(returnFiber, oldFiber, '' + newChild, expirationTime);
-  }
+  console.log('updateSlot')
   if (typeof newChild === 'object' && newChild !== null) {
     return updateElement(returnFiber, oldFiber, newChild, expirationTime)
   }
@@ -1190,7 +1164,7 @@ function appendAllChildren (parent, workInProgress) {
   // children to find all the terminal nodes.
   let node = workInProgress.child
   while (node !== null) {
-    if (node.tag === HostComponent || node.tag === HostText) {
+    if (node.tag === HostComponent) {
       appendInitialChild(parent, node.stateNode);
     } else if (node.child !== null) {
       node.child.return = node
@@ -1401,7 +1375,7 @@ function commitPlacement (finishedWork) {
   const parent = parentFiber.tag === HostRoot ? parentFiber.stateNode.containerInfo : parentFiber.stateNode
   let node = finishedWork
   while (true) {
-    if (node.tag === HostComponent || node.tag === HostText) {
+    if (node.tag === HostComponent) {
       appendChildToContainer(parent, node.stateNode)
     } else if (node.child !== null) {
       node.child.return = node
@@ -1461,7 +1435,7 @@ function commitDeletion (current) {
   const parent = parentFiber.tag === HostRoot ? parentFiber.stateNode.containerInfo : parentFiber.stateNode
   let node = current
   while (true) {
-    if (node.tag === HostComponent || node.tag === HostText) {
+    if (node.tag === HostComponent) {
       // ignored unmount the children of the node, it is not safe, because children may contain ClassComponent,
       // which should call componentWillUnmount() if needed
       removeChildFromContainer(parent, node.stateNode) 
