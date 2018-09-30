@@ -141,7 +141,7 @@ type Fiber = {|
   _debugIsCurrentlyTiming?: boolean,
 |};
 ```
-React 内部用了flow 作为类型检查。我会逐一介绍这些属性.
+React 内部用了flow 作为类型检查。我会介绍下面这些属性，其他的属性不会包含在SimpleReact中。
 
 ### tag
 
@@ -170,24 +170,105 @@ SimpleReact 不会使用 key 作为识别变化的依据。
 
 ### return, child 和 sibling
 
-return，child 和 sibling 构造了一颗 fiber 树
+![tree](Images/Fiber_Tree.PNG)
+
+return，child 和 sibling 属性构造了一颗 fiber 树
 
 ### index
 
+index 会用来判断元素是否发生了移动，我会忽略这个属性，因为我假设**更新永远不会改变元素的位置**。
+
 ### ref
+
+我不会实现 [refs 功能](https://react.docschina.org/docs/glossary.html#refs)，忽略这个属性。
 
 ### pendingProps, memoizedProps 和 memoizedState
 
+不同 tag 的 fiber 有不同的可能的值 
+
 ### updateQueue
+
+状态更新保存在这里
 
 ### mode
 
+表示 fiber 的工作模式，可能的值在 [ReactTypeOfMode.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactTypeOfMode.js) 中。
+我假设所有的 fiber 只工作在 ConcurrentMode，因此忽略这个属性。
+
 ### effectTag
+
+effectTag 代表了此 fiber 包含的副作用，可能的值在 [ReactSideEffectTags.js](https://github.com/facebook/react/blob/master/packages/shared/ReactSideEffectTags.js) 中。
+为了简化，我假设**组件在渲染过程中只会包含 Placement 和 Update 这两种副作用**。 Placement 副作用表示该 fiber 第一次被挂载，Update 副作用表示该 fiber 包含状态更新。
 
 ### nextEffect, firstEffect 和 lastEffect
 
+nextEffect 属性构成了所有包含副作用的 fiber 的一个单向链表。firstEffect 和 lastEffect 分别指向该 fiber 子树(不包含该 fiber 自身)中第一个和最后一个包含副作用的fiber
+
 ### expirationTime
+
+代表此 fiber 自身需要被 commit，需要被挂载或更新的最后期限，超过这个期限将会导致这个 fiber 不再等待浏览器的空闲时间来完成它的工作，而是表现的和未激活异步模式一样，同步的完成它的工作。这是为了避免 starvation。
 
 ### childExpirationTime
 
+代表子树中的未完成的 fiber 的 expirationTime。我会忽略这个属性。
+
 ### alternate
+
+在任何情况下，每个组件实例最多有两个 fiber 何其关联。一个是被 commit 过后的 fiber，即它所包含的副作用已经被应用到了 dom 上了，称它为 current fiber；另一个是现在未被 commit 的 fiber，称为 work-in-progress fiber。
+
+current fiber 的 alternate 是 work-in-progress fiber， 而 work-in-progress fiber 的 alternate 是 current fiber。
+
+
+## 什么是 FiberRoot ？
+```javascript
+type BaseFiberRootProperties = {|
+  // Any additional information from the host associated with this root.
+  containerInfo: any,
+  // Used only by persistent updates.
+  pendingChildren: any,
+  // The currently active root fiber. This is the mutable root of the tree.
+  current: Fiber,
+
+  // The following priority levels are used to distinguish between 1)
+  // uncommitted work, 2) uncommitted work that is suspended, and 3) uncommitted
+  // work that may be unsuspended. We choose not to track each individual
+  // pending level, trading granularity for performance.
+  //
+  // The earliest and latest priority levels that are suspended from committing.
+  earliestSuspendedTime: ExpirationTime,
+  latestSuspendedTime: ExpirationTime,
+  // The earliest and latest priority levels that are not known to be suspended.
+  earliestPendingTime: ExpirationTime,
+  latestPendingTime: ExpirationTime,
+  // The latest priority level that was pinged by a resolved promise and can
+  // be retried.
+  latestPingedTime: ExpirationTime,
+
+  // If an error is thrown, and there are no more updates in the queue, we try
+  // rendering from the root one more time, synchronously, before handling
+  // the error.
+  didError: boolean,
+
+  pendingCommitExpirationTime: ExpirationTime,
+  // A finished work-in-progress HostRoot that's ready to be committed.
+  finishedWork: Fiber | null,
+  // Timeout handle returned by setTimeout. Used to cancel a pending timeout, if
+  // it's superseded by a new one.
+  timeoutHandle: TimeoutHandle | NoTimeout,
+  // Top context object, used by renderSubtreeIntoContainer
+  context: Object | null,
+  pendingContext: Object | null,
+  // Determines if we should attempt to hydrate on the initial mount
+  +hydrate: boolean,
+  // Remaining expiration time on this root.
+  // TODO: Lift this into the renderer
+  nextExpirationTimeToWorkOn: ExpirationTime,
+  expirationTime: ExpirationTime,
+  // List of top-level batches. This list indicates whether a commit should be
+  // deferred. Also contains completion callbacks.
+  // TODO: Lift this into the renderer
+  firstBatch: Batch | null,
+  // Linked-list of roots
+  nextScheduledRoot: FiberRoot | null,
+|};
+```

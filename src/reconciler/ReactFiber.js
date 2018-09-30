@@ -22,7 +22,6 @@ export function FiberNode (tag, pendingProps) {
   // Singly Linked List Tree Structure.
   this.child = null
   this.sibling = null
-  this.index = 0
 
   // Input is the data coming into process this fiber. Arguments. Props.
   this.pendingProps = pendingProps // This type will be more specific once we overload the tag.
@@ -33,9 +32,6 @@ export function FiberNode (tag, pendingProps) {
 
    // The state used to create the output
   this.memoizedState = null
-
-  // A linked-list of contexts that this fiber depends on
-  this.firstContextDependency = null
 
   // Effects
   this.effectTag = NoEffect
@@ -50,9 +46,6 @@ export function FiberNode (tag, pendingProps) {
   // Represents a time in the future by which this work should be completed.
   // Does not include work found in its subtree.
   this.expirationTime = NoWork
-
-  // This is used to quickly determine if a subtree has no pending changes
-  this.childExpirationTime = NoWork
 
   // This is a pooled version of a Fiber. Every fiber that gets updated will
   // eventually have a pair. There are cases when we can clean up pairs to save

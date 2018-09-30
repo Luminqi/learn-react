@@ -911,6 +911,7 @@ function updateClassComponent (current, workInProgress, Component, nextProps, re
 }
 
 function cloneChildFibers(workInProgress) {
+  console.log('cloneChildFibers')
   if (workInProgress.child === null) {
     return
   }
@@ -1185,7 +1186,7 @@ function appendAllChildren (parent, workInProgress) {
   }
 }
 
-function completeWork (current, workInProgress, renderExpirationTime) {
+function completeWork (current, workInProgress) {
   console.log('completeWork')
   console.log('current: ', current)
   console.log('workInProgress.tag: ', workInProgress.tag)
@@ -1263,7 +1264,7 @@ function completeUnitOfWork (workInProgress) {
     const siblingFiber = workInProgress.sibling
     if ((workInProgress.effectTag & Incomplete) === NoEffect) {
       // This fiber completed.
-      completeWork(current, workInProgress, nextRenderExpirationTime)
+      completeWork(current, workInProgress)
       console.log('after completeWork, workInProgress: ', workInProgress)
       if (returnFiber !== null &&
         // Do not append effects to parents if a sibling failed to complete
