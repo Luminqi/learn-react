@@ -218,6 +218,8 @@ nextEffect 属性构成了所有包含副作用的 fiber 的一个单向链表�
 
 current fiber 的 alternate 是 work-in-progress fiber， 而 work-in-progress fiber 的 alternate 是 current fiber。
 
+最后简化了的 fiber 的构造函数 [ReactFiber.js](/src/reconciler/ReactFiber.js)
+
 
 ## 什么是 FiberRoot ？
 ```javascript
