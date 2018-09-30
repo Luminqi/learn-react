@@ -13,19 +13,19 @@
 社区已经有很多介绍 Fiber 的资料，我首推 [fresh-async-react](https://github.com/sw-yx/fresh-async-react)。 这个项目涵盖了目前为止关于 React 的各种官方和社区的资料，并且在不断更新中。
 
 为了理解 Fiber 架构，我觉得这几个视频有必要重点看一下：
-[Beyond React 16 ](https://www.youtube.com/watch?v=v6iR3Zk4oDY)
-[Lin Clark's A Cartoon Intro to Fiber](https://www.youtube.com/watch?v=ZCuYPiUIONs)
-[Algebraic Effects, Fibers, Coroutines](https://www.youtube.com/watch?v=7GcrT0SBSnI)
+* [Beyond React 16 ](https://www.youtube.com/watch?v=v6iR3Zk4oDY)
+* [Lin Clark's A Cartoon Intro to Fiber](https://www.youtube.com/watch?v=ZCuYPiUIONs)
+* [Algebraic Effects, Fibers, Coroutines](https://www.youtube.com/watch?v=7GcrT0SBSnI)
 
 最后一个视频非常有用，它让我对 Fiber 为什么被设计成这样，time slicing 和 suspense 是如何实现的有了一个概观。
 
-之前 React 在挂载和更新过程中，本质上就是在调用函数，而函数的执行是由 javascript call stack 控制的，stack frame 则代表了函数的调用。stack frame的创建销毁都是由js引擎的，我们不能在程序中使用它。
+之前 React 在挂载和更新过程中，本质上就是在调用函数，而函数的执行是由 javascript call stack 控制的，stack frame 则代表了函数的调用。stack frame 的创建销毁都是由 js 引擎完成的，我们不能在程序中使用它。
 
 ![stackFrame](Images/Fiber_StackFrame.PNG)
 
-整个Fiber架构可以看作实现了一个类似于 javascript call stack 的 React call stack，而具体的单个 fiber 实例可以看作是一个包含了组件信息的 stack frame。 而现在这个call stack是我们能够完全控制的，我们可以创建，删除，复制 stack frame。
+整个Fiber 架构可以看作实现了一个类似于 javascript call stack 的 React call stack，而具体的单个 fiber 实例可以看作是一个包含了组件信息的 stack frame。 而现在这个call stack是我们能够完全控制的，我们可以创建，删除，复制 stack frame。
 
-就像一个 stack frame 包含了指向当前函数的指针，函数的返回地址，函数参数，临时变量等等，一个 fiber 实例包含了当前的组件信息，父组件，props， state 等等。
+就像一个 stack frame 包含了指向当前函数的指针，函数的返回地址，函数参数，临时变量等等，一个 fiber 实例包含了当前的组件信息，父组件 fiber，props， state 等等。
 
 现在，让我们看看真正的 fiber 是什么样子：
 ```javascript
@@ -147,9 +147,9 @@ React 内部用了flow 作为类型检查。我会逐一介绍这些属性.
 
 tag 代表了 fiber 的类型。可能的类型在 [ReactWorkTags.js](https://github.com/facebook/react/blob/master/packages/shared/ReactWorkTags.js) 中。
 为了简化，SimpleReact 将只支持 ClassComponent，HostRoot， HostComponent 类型
-*ClassComponent：用户定义的class组件的类型
-*HostRoot：根节点的类型
-*HostComponent: 特定环境中的原生节点的类型，如 Dom 中 <div>, Native 中的 <View>
+* ClassComponent：用户定义的class组件的类型
+* HostRoot：根节点的类型
+* HostComponent: 特定环境中的原生节点的类型，如 Dom 中 &lt;div&gt;, Native 中的 &lt;View&gt;
 
 ### key
 
@@ -158,15 +158,15 @@ SimpleReact 不会使用 key 作为识别变化的依据。
 
 ### type
 
-*HostRoot 类型的 fiber，type 是 null
-*ClassComponent 类型的 fiber， type 是用户声明的组件类的构造函数
-*HostComponent 类型的 fiber， type 是节点的标签的字符串表示，即表示 <div> 的 fiber 的 type 是字符串 'div'
+* HostRoot 类型的 fiber，type 是 null
+* ClassComponent 类型的 fiber， type 是用户声明的组件类的构造函数
+* HostComponent 类型的 fiber， type 是节点的标签的字符串表示，即表示 &lt;div&gt; 的 fiber 的 type 是字符串 'div'
 
 ### stateNode
 
-*HostRoot 类型的 fiber，stateNode 是一个 FiberRoot 类的实例
-*ClassComponent 类型的 fiber，stateNode 是一个用户声明的组件类的实例
-*HostComponent 类型的 fiber，stateNode 是该 fiber 表示的 dom 节点
+* HostRoot 类型的 fiber，stateNode 是一个 FiberRoot 类的实例
+* ClassComponent 类型的 fiber，stateNode 是一个用户声明的组件类的实例
+* HostComponent 类型的 fiber，stateNode 是该 fiber 表示的 dom 节点
 
 ### return, child 和 sibling
 
