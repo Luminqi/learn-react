@@ -8,8 +8,6 @@ export function createFiberRoot (containerInfo) {
     current: uninitializedFiber,
     // Any additional information from the host associated with this root.
     containerInfo: containerInfo,
-
-    pendingCommitExpirationTime: NoWork,
     // A finished work-in-progress HostRoot that's ready to be committed.
     finishedWork: null,
     expirationTime: NoWork

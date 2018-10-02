@@ -1,7 +1,5 @@
-export const MAX_SIGNED_31_BIT_INT = 1073741823
 export const NoWork = 0
 export const Sync = 1
-export const Never = MAX_SIGNED_31_BIT_INT
 
 const UNIT_SIZE = 10
 const MAGIC_NUMBER_OFFSET = 2

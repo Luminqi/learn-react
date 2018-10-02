@@ -280,4 +280,4 @@ hostConfig 并没有完全完成。当我们实现了 reconciler 模块的时候
 
 对于 Fiber 架构， 目前为止我们只知道 reconciler 模块将使用 scheduleDeferredCallback 来实现时间分片。
 
-[下一章节](Fiber.md)
+[下一章节](Fiber_part1.md)

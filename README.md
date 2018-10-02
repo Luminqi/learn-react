@@ -8,7 +8,8 @@
 ## Guide
 * [简介](/Guide/Introduction.md)
 * [实现自定义的渲染器](/Guide/CustomRenderer.md)
-* [实现Fiber架构](/Guide/Fiber.md)
+* [实现Fiber架构 I](/Guide/Fiber_part1.md)
+* [实现Fiber架构 II]
 * [实现事件处理]
 * [实现React Core API]
 * [实现Suspense]

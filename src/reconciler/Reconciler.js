@@ -620,7 +620,6 @@ function renderRoot (root, isYieldy) {
   let rootWorkInProgress = root.current.alternate
 
   // Ready to commit.
-  root.pendingCommitExpirationTime = expirationTime
   root.finishedWork = rootWorkInProgress
 }
 
@@ -1578,14 +1577,6 @@ function commitRoot(root, finishedWork) {
   console.log('commitRoot')
   isWorking = true;
   isCommitting = true
-  if (root.current === finishedWork) {
-    throw new Error('Cannot commit the same tree as before.')
-  }
-  const committedExpirationTime = root.pendingCommitExpirationTime;
-  if (committedExpirationTime === NoWork) {
-    throw new Error('Cannot commit an incomplete root.')
-  }
-  root.pendingCommitExpirationTime = NoWork
   // Assume there's no remaining work.
   root.expirationTime = NoWork
   // Assume there is no effect on the root.

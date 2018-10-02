@@ -1,12 +1,14 @@
-# Fiber 架构
+# Fiber 架构--序言
 
 ## 为什么需要 Fiber ?
 
-在 Fiber 之前，[Stack Reconciler](https://reactjs.org/docs/implementation-notes.html) 负责完成组件的渲染。简单的说， 一旦我们调用 ReactDOM.render 来进行第一次组件挂载， 或是用户交互触发了 this.setState 更新过程，整个挂载或者更新过程不可能被打断。
+在 Fiber 之前，Stack Reconciler 负责完成组件的渲染。简单的说， 一旦我们调用 ReactDOM.render 来进行第一次组件挂载,或是用户交互触发了 this.setState 更新过程，整个挂载或者更新过程不可能被打断。如果计算量庞大，会使得浏览器渲染一帧的时间过长，造成卡顿，用户的交互也无法得到实时的反馈。
 
-因为 Stack Reconciler 就如它的名字一样， 它从根组件开始，递归地调用各个组件的 render 函数来明确渲染什么。整个计算过程是由 javascript stack 控制的，而我们无法控制js栈。
+关于 Stack Reconciler 的实现，可以看官网 [Implementation Notes](https://reactjs.org/docs/implementation-notes.html)。为什么整个过程不能被打断，从 mount 过程来看，遇到 class 组件的时候，会创建一个实例并调用实例的 render 函数来明确它要渲染什么；遇到 functional 组件的时候，会调用此方程来明确它要渲染什么；遇到原生节点的时候，会创建一个 DOM 节点并添加到父节点下。 这个过程是递归的，最终我们将得到一颗完整的 DOM 树。从最开始到修改 DOM，整个过程由 javascript stack 控制，而我们无法控制 js 栈，我们不能对js引擎说：噢，我们已经花了太长时间在计算上了，我们该停止工作了，让浏览器做些渲染。
 
-如果计算量庞大，会阻塞浏览器的渲染过程造成卡顿，用户的交互也无法得到实时的反馈。而 Fiber 架构能够解决这些问题。
+## 为什么 Fiber 能解决这些问题 ?
+
+简要地说，Fiber 架构把工作分成一份一份，并用上一章节提到的 scheduleDeferredCallback 把每一小份工作分散到浏览器的空闲时期来完成。这就不会使 js 主线程占用过长的时间，导致上面发生的问题。
 
 ## 什么是 Fiber ？
 
@@ -14,7 +16,15 @@
 
 为了理解 Fiber 架构，我觉得这几个视频有必要重点看一下：
 * [Beyond React 16 ](https://www.youtube.com/watch?v=v6iR3Zk4oDY)
+
+演示了 time slicing 和 suspense。
+
 * [Lin Clark's A Cartoon Intro to Fiber](https://www.youtube.com/watch?v=ZCuYPiUIONs)
+  
+生动形象地介绍了 Fiber 架构。 我简要提一下视频中提到的 render 和 commit 阶段(后面的陈述可能会涉及这两个名词)：
+阶段一，render phase，这个阶段会构建 work-in-progress fiber 树，得到和之前的 fiber 树的差别，但是不会应用这些差别到 DOM。这个阶段能够被打断。
+阶段二，commit phase，这个阶段才会真正的修改 DOM， 这个阶段不能被打断。
+
 * [Algebraic Effects, Fibers, Coroutines](https://www.youtube.com/watch?v=7GcrT0SBSnI)
 
 最后一个视频非常有用，它让我对 Fiber 为什么被设计成这样，time slicing 和 suspense 是如何实现的有了一个概观。
@@ -148,8 +158,8 @@ React 内部用了flow 作为类型检查。我会介绍下面这些属性，其
 tag 代表了 fiber 的类型。可能的类型在 [ReactWorkTags.js](https://github.com/facebook/react/blob/master/packages/shared/ReactWorkTags.js) 中。
 为了简化，SimpleReact 将只支持 ClassComponent，HostRoot， HostComponent 类型
 * ClassComponent：用户定义的class组件的类型
-* HostRoot：根节点的类型
-* HostComponent: 特定环境中的原生节点的类型，如 Dom 中 &lt;div&gt;, Native 中的 &lt;View&gt;
+* HostRoot：根节点的类型，根节点就是调用 ReactDOM.render 时传入的第二个参数 container。
+* HostComponent: 特定环境中的原生节点的类型，如 DOM 中 &lt;div&gt;, Native 中的 &lt;View&gt;
 
 ### key
 
@@ -166,7 +176,7 @@ SimpleReact 不会使用 key 作为识别变化的依据。
 
 * HostRoot 类型的 fiber，stateNode 是一个 FiberRoot 类的实例
 * ClassComponent 类型的 fiber，stateNode 是一个用户声明的组件类的实例
-* HostComponent 类型的 fiber，stateNode 是该 fiber 表示的 dom 节点
+* HostComponent 类型的 fiber，stateNode 是该 fiber 表示的 DOM 节点
 
 ### return, child 和 sibling
 
@@ -214,7 +224,7 @@ nextEffect 属性构成了所有包含副作用的 fiber 的一个单向链表�
 
 ### alternate
 
-在任何情况下，每个组件实例最多有两个 fiber 何其关联。一个是被 commit 过后的 fiber，即它所包含的副作用已经被应用到了 dom 上了，称它为 current fiber；另一个是现在未被 commit 的 fiber，称为 work-in-progress fiber。
+在任何情况下，每个组件实例最多有两个 fiber 何其关联。一个是被 commit 过后的 fiber，即它所包含的副作用已经被应用到了 DOM 上了，称它为 current fiber；另一个是现在未被 commit 的 fiber，称为 work-in-progress fiber。
 
 current fiber 的 alternate 是 work-in-progress fiber， 而 work-in-progress fiber 的 alternate 是 current fiber。
 
@@ -274,3 +284,134 @@ type BaseFiberRootProperties = {|
   nextScheduledRoot: FiberRoot | null,
 |};
 ```
+我会选择性地介绍一些属性：
+
+### containerInfo
+
+保存的是根 DOM 节点， 即传入 CustomDOM.render 的第二个参数 container
+
+### current
+
+代表的是这个 root 对应的 fiber
+
+### earliestSuspendedTime, latestSuspendedTime, earliestPendingTime, latestPendingTime 和 latestPingedTime
+
+* earliestSuspendedTime, latestSuspendedTime 代表了组件抛出的 promise 还没有 resolve 时，被暂停的发生时间最先和最迟的工作。
+* latestPingedTime 代表了组件抛出的 promise 已经 resolve 时，等待被 commit 的工作
+* earliestPendingTime, latestPendingTime 代表了普通未被 commit 的最先和最迟的工作
+
+与 suspense 相关的论述可以看 suspense 章节。
+
+需要这些优先级的区分，是因为一个 root 中可以同时有多个需要被完成的工作，这些工作的完成期限可能各不相同。比如说，组件抛出了 promise， 还未被 resolve， 这时候 root 下的另外一个组件又被触发了状态更新；或者高优先级的工作打断了低优先级的工作。
+
+为了简化，我会忽略这些属性。我假设**在无论什么情况下，root 下最多存在一个待完成的工作**。这意味着，一旦我们触发了状态更新，直到这个更新被完成了，不会有新的更新被触发。所以不需要考虑低优先级被高优先级的工作打断之后如何恢复的问题。实际上 React 直到现在(2018.10.1)还没有完全实现 resume。 最新的进展可以关注官方[Releasing Time Slicing](https://github.com/facebook/react/issues/13306)。
+
+### pendingCommitExpirationTime 和 finishedWork
+
+在完成了 render 阶段的工作后， 在被 commit 之前，pendingCommitExpirationTime 和 finishedWork 都会被更新，finishedWork 引用的是即将被 commit 的类型为 HostRoot 的 fiber。我会忽略 pendingCommitExpirationTime。
+
+### expirationTime
+
+注意 fiber 也有 expirationTime 属性。root 的 expirationTime 属性保存的是这个 root 下还未 commit 的 fiber 的 expirationTime。
+
+由于我将不考虑 context ，batch 以及 error， 剩余的属性我都会忽略，最后简化的 FiberRoot 的构造函数：
+```javascript
+function createFiberRoot (containerInfo) {
+  let uninitializedFiber = createHostRootFiber()
+  let root = {
+    // The currently active root fiber. This is the mutable root of the tree.
+    current: uninitializedFiber,
+    // Any additional information from the host associated with this root.
+    containerInfo: containerInfo,
+    // A finished work-in-progress HostRoot that's ready to be committed.
+    finishedWork: null,
+    expirationTime: NoWork
+  }
+  uninitializedFiber.stateNode = root
+  return root
+}
+```
+注意 fiberRoot 的 current 所指的 fiber， 其 stateNode 属性又指向该 root 本身，这是一个环状结构。
+
+## ExpirationTime 和 UpdateQueue
+
+上面介绍 fiber 的时候已经提到了这两个属性，实际上 react 有两个单独的文件 [ReactFiberExpirationTime.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactFiberExpirationTime.js) 和 [ReactUpdateQueue.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactUpdateQueue.js)定义它们。
+作为基础，我觉得有必要先介绍一下它们。
+
+我会直接引用 ReactFiberExpirationTime.js，因为实际上理解它并不难，我只简单地介绍一下其中的两个函数。
+computeAsyncExpiration 和 computeInteractiveExpiration 这两个方程都只接受一个参数，现在的时间，返回一个未来的期限。computeAsyncExpiration 会得到更长的期限，对应的是普通的异步任务。computeInteractiveExpiration 会得到相对更短的期限，意味着要更快完成，对应的是用户交互产生的任务，比如说用户的点击事件。
+
+对于 ReactUpdateQueue.js，我做了很多简化。我建议你去看看源码，里面有不错的注释，能帮你加深对 Fiber 的理解。
+简化之后的 ReactUpdateQueue.js：
+```javascript
+import {NoWork} from './ReactFiberExpirationTime'
+// Assume when processing the updateQueue, process all updates together
+class UpdateQueue {
+  constructor (baseState) {
+    this.baseState = baseState
+    this.firstUpdate = null
+    this.lastUpdate = null
+  }
+}
+
+class Update {
+  constructor () {
+    this.payload = null
+    this.next = null
+  }
+}
+
+export function createUpdate () {
+  return new Update()
+}
+
+function appendUpdateToQueue (queue, update) {
+  // Append the update to the end of the list.
+  if (queue.lastUpdate === null) {
+    // Queue is empty
+    queue.firstUpdate = queue.lastUpdate = update
+  } else {
+    queue.lastUpdate.next = update
+    queue.lastUpdate = update
+  }
+}
+
+export function enqueueUpdate (fiber, update) {
+  // Update queues are created lazily.
+  let queue = fiber.updateQueue
+  if (queue === null) {
+    queue = fiber.updateQueue = new UpdateQueue(fiber.memoizedState)
+  }
+  appendUpdateToQueue(queue, update)
+}
+
+function getStateFromUpdate (update, prevState) {
+  console.log('getStateFromUpdate')
+  const partialState = update.payload
+  if (partialState === null || partialState === undefined) {
+    // Null and undefined are treated as no-ops.
+    return prevState
+  }
+  // Merge the partial state and the previous state.
+  return Object.assign({}, prevState, partialState)
+}
+
+export function processUpdateQueue (workInProgress, queue) {
+  console.log('processUpdateQueue')
+  // Iterate through the list of updates to compute the result.
+  let update = queue.firstUpdate
+  let resultState = queue.baseState
+  while (update !== null) {
+    resultState = getStateFromUpdate(update, resultState)
+    console.log('resultState: ', resultState)
+    update = update.next
+  }
+  queue.baseState = resultState
+  queue.firstUpdate = queue.lastUpdate = null
+  workInProgress.expirationTime = NoWork
+  workInProgress.memoizedState = resultState
+}
+
+```
+
+[下一章](Fiber_part2.md)
