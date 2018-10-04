@@ -1124,6 +1124,7 @@ function updateHostRoot (current, workInProgress, renderExpirationTime) {
   const nextState = workInProgress.memoizedState
   const nextChildren = nextState.element
   if (nextChildren === prevChildren) {
+    console.log('when update')
     // If the state is the same as before, that's a bailout because we had
     // no work that expires at this time.
     cloneChildFibers(workInProgress)

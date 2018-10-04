@@ -4,7 +4,7 @@
 
 在 Fiber 之前，Stack Reconciler 负责完成组件的渲染。简单的说， 一旦我们调用 ReactDOM.render 来进行第一次组件挂载,或是用户交互触发了 this.setState 更新过程，整个挂载或者更新过程不可能被打断。如果计算量庞大，会使得浏览器渲染一帧的时间过长，造成卡顿，用户的交互也无法得到实时的反馈。
 
-关于 Stack Reconciler 的实现，可以看官网 [Implementation Notes](https://reactjs.org/docs/implementation-notes.html)。为什么整个过程不能被打断，从 mount 过程来看，遇到 class 组件的时候，会创建一个实例并调用实例的 render 函数来明确它要渲染什么；遇到 functional 组件的时候，会调用此方程来明确它要渲染什么；遇到原生节点的时候，会创建一个 DOM 节点并添加到父节点下。 这个过程是递归的，最终我们将得到一颗完整的 DOM 树。从最开始到修改 DOM，整个过程由 javascript stack 控制，而我们无法控制 js 栈，我们不能对js引擎说：噢，我们已经花了太长时间在计算上了，我们该停止工作了，让浏览器做些渲染。
+关于 Stack Reconciler 的实现，可以看官网 [Implementation Notes](https://reactjs.org/docs/implementation-notes.html)。为什么整个过程不能被打断，从 mount 过程来看，遇到 class 组件的时候，会创建一个实例并调用实例的 render 函数来明确它要渲染什么；遇到 functional 组件的时候，会调用此函数来明确它要渲染什么；遇到原生节点的时候，会创建一个 DOM 节点并添加到父节点下。 这个过程是递归的，最终我们将得到一颗完整的 DOM 树。从最开始到修改 DOM，整个过程由 javascript stack 控制，而我们无法控制 js 栈，我们不能对js引擎说：噢，我们已经花了太长时间在计算上了，我们该停止工作了，让浏览器做些渲染。
 
 ## 为什么 Fiber 能解决这些问题 ?
 
@@ -22,8 +22,10 @@
 * [Lin Clark's A Cartoon Intro to Fiber](https://www.youtube.com/watch?v=ZCuYPiUIONs)
   
 生动形象地介绍了 Fiber 架构。 我简要提一下视频中提到的 render 和 commit 阶段(后面的陈述可能会涉及这两个名词)：
+
 阶段一，render phase，这个阶段会构建 work-in-progress fiber 树，得到和之前的 fiber 树的差别，但是不会应用这些差别到 DOM。这个阶段能够被打断。
-阶段二，commit phase，这个阶段才会真正的修改 DOM， 这个阶段不能被打断。
+
+阶段二，commit phase，这个阶段才会真正的修改 DOM。 这个阶段不能被打断。
 
 * [Algebraic Effects, Fibers, Coroutines](https://www.youtube.com/watch?v=7GcrT0SBSnI)
 
