@@ -173,7 +173,7 @@ let isCommitting = false
 let nextUnitOfWork = null
 
 // The time at which we're currently rendering work.
-let nextRenderExpirationTime = NoWork;
+let nextRenderExpirationTime = NoWork
 
 // Should track side effects in reconcileChildren
 let shouldTrackSideEffects = true
@@ -320,21 +320,23 @@ function scheduleWork (fiber, expirationTime) {
   }
 }
 
-function addRootToSchedule (root, expirationTime) {
-  console.log('addRootToSchedule')
-  if (!scheduledRoot) {
-    // This root is not already scheduled. Add it.
-    scheduledRoot = root
-    root.expirationTime = expirationTime
-  } else {
-    // This root is already scheduled, but its priority may have increased.
-    const remainingExpirationTime = root.expirationTime
-    if (remainingExpirationTime === NoWork || expirationTime < remainingExpirationTime) {
-      // Update the priority.
-      root.expirationTime = expirationTime
-    }
-  }
-}
+// function addRootToSchedule (root, expirationTime) {
+//   console.log('addRootToSchedule')
+//   console.log('root.expirationTime: ', root.expirationTime)
+//   console.log('expirationTime: ', expirationTime)
+//   if (!scheduledRoot) {
+//     // This root is not already scheduled. Add it.
+//     scheduledRoot = root
+//     root.expirationTime = expirationTime
+//   } else {
+//     // This root is already scheduled, but its priority may have increased.
+//     const remainingExpirationTime = root.expirationTime
+//     if (remainingExpirationTime === NoWork || expirationTime < remainingExpirationTime) {
+//       // Update the priority.
+//       root.expirationTime = expirationTime
+//     }
+//   }
+// }
 
 function requestWork (root, expirationTime) {
   console.log('requestWork')
@@ -342,7 +344,7 @@ function requestWork (root, expirationTime) {
   console.log('isRendering: ', isRendering)
   console.log('isBatchingUpdates: ', isBatchingUpdates)
   console.log('expirationTime: ', expirationTime)
-  addRootToSchedule(root, expirationTime)
+  scheduledRoot = root
   if (isRendering) {
     // Prevent reentrancy. Remaining work will be scheduled at the end of
     // the currently rendering batch.
@@ -353,8 +355,11 @@ function requestWork (root, expirationTime) {
     // Flush work at the end of the batch.
     return
   }
-  // ignore sync situation
-  scheduleCallbackWithExpirationTime(root, expirationTime)
+  if (expirationTime === Sync) {
+    performSyncWork()
+  } {
+    scheduleCallbackWithExpirationTime(root, expirationTime)
+  }
 }
 
 function scheduleCallbackWithExpirationTime(root, expirationTime) {
@@ -415,6 +420,7 @@ function performWork (dl) {
   }
 
   // Clean-up.
+  console.log('clearn up deadline and deadlineDidExpire')
   deadline = null;
   deadlineDidExpire = false;
 
@@ -424,6 +430,7 @@ function performWork (dl) {
 
 function shouldYield () {
   console.log('shouldYield')
+  console.log('deadlineDidExpire: ', deadlineDidExpire)
   console.log('deadline.timeRemaining: ', deadline.timeRemaining())
   if (deadlineDidExpire) {
     return true
