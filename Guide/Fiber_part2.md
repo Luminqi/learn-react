@@ -190,7 +190,7 @@ function scheduleWork (fiber, expirationTime) {
   if (
     !isWorking ||
     isCommitting
-  ) {
+  ) { //don't understand
     requestWork(root, expirationTime)
   }
 }
@@ -325,16 +325,42 @@ function performWorkOnRoot(root, isExpired) {
 这里有几个新出现的全局变量：
 
 * isBatchingUpdates: 表明现在正在 batch 更新(与事件处理相关，现在可以认为它的值一直为 false)。
-* deadline：用来保存 requestIdleCallback 传递给即将被调用的函数的名为 deadline 的参数。如果不理解请看 requestIdleCallback 的[介绍](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback)。
-* deadlineDidExpire: 表示本次调用 requestIdleCallback 分配的空闲时间已经用完了。
+* deadline：用来保存 requestIdleCallback 传递给即将被调用的函数的名为 deadline 的参数。deadline 具有一个 timeRemaining 属性，可以通过调用 deadline.timeRemaining() 来得到剩余的空闲时间。如果不理解请看 requestIdleCallback 的[介绍](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback)。
+* deadlineDidExpire: 表示本次调用 requestIdleCallback 分配的空闲时间是否已经用完。
 
 ### scheduleRootUpdate
 
-需要注意 update 的 payload 的 element 属性是一个 Element 对象
+需要注意 update 的 payload 的 element 属性是一个 Element 对象。
 
 ### scheduleWork
 
-首先调用 scheduleWorkToRoot 更新
+* 调用 scheduleWorkToRoot 更新 fiber 的 expirationTime, 如果 fiber 有 alternate，也更新 alternate 的 expirationTime。scheduleWorkToRoot 会返回此 fiber 的根 fiber。
+* 更新根 fiber 的 expirationTime。
+* 根据情况调用 requestWork。
 
+### requestWork
 
+* 如果 React 正在渲染，直接返回。
+* 如果正在批量更新，直接返回。
+* 如果是同步更新，调用 performSyncWork，否则调用 scheduleCallbackWithExpirationTime。
 
+### scheduleCallbackWithExpirationTime
+
+* 计算工作期限
+* 调用 scheduleDeferredCallback(requestIdleCallback) 让 performAsyncWork 在浏览器空闲时间再运行。
+
+### performSyncWork 和 performAsyncWork
+
+两者都调用了 performWork，performSyncWork 传入 null， performAsyncWork 传入 deadline。
+
+### performWork
+
+* 值得注意的是 while 循环的判断条件。异步情况的条件意味着当 scheduledRoot === null，即没有待完成的工作的时候，会退出循环。当 deadlineDidExpire === true && currentRendererTime < scheduledRoot.expirationTime 的时候也会退出循环
+, 这种情况意味着本次调用 requestIdleCallback 分配的空闲时间已经用完，而本次工作并没有超过预期完成的期限，所以需要再次调用 requestIdleCallback 来分配空闲时间。
+* 当异步任务的 currentRendererTime >= scheduledRoot.expirationTime，即已经超过了本次工作的期限，实际上就会和同步任务一样调用  performWorkOnRoot(scheduledRoot, true)。
+* 根据上面的陈述，当我们退出循环的时候，要么已经完成了工作，要么本次分配的空闲时间已经用完，所以如果仍然有待完成的工作，就调用 scheduleCallbackWithExpirationTime。
+* 重置 deadline 和 deadlineDidExpire
+
+### performWorkOnRoot
+
+*
