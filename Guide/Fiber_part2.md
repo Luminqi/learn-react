@@ -264,7 +264,6 @@ function performWork (dl) {
   deadlineDidExpire = false;
 }
 
-
 function shouldYield () {
   if (deadlineDidExpire) {
     return true
@@ -336,7 +335,7 @@ function performWorkOnRoot(root, isExpired) {
 
 * 调用 scheduleWorkToRoot 更新 fiber 的 expirationTime, 如果 fiber 有 alternate，也更新 alternate 的 expirationTime。scheduleWorkToRoot 会返回此 fiber 的根 fiber。
 * 更新根 fiber 的 expirationTime。
-* 根据情况调用 requestWork。
+* 调用 requestWork。
 
 ### requestWork
 
@@ -358,9 +357,524 @@ function performWorkOnRoot(root, isExpired) {
 * 值得注意的是 while 循环的判断条件。异步情况的条件意味着当 scheduledRoot === null，即没有待完成的工作的时候，会退出循环。当 deadlineDidExpire === true && currentRendererTime < scheduledRoot.expirationTime 的时候也会退出循环
 , 这种情况意味着本次调用 requestIdleCallback 分配的空闲时间已经用完，而本次工作并没有超过预期完成的期限，所以需要再次调用 requestIdleCallback 来分配空闲时间。
 * 当异步任务的 currentRendererTime >= scheduledRoot.expirationTime，即已经超过了本次工作的期限，实际上就会和同步任务一样调用  performWorkOnRoot(scheduledRoot, true)。
-* 根据上面的陈述，当我们退出循环的时候，要么已经完成了工作，要么本次分配的空闲时间已经用完，所以如果仍然有待完成的工作，就调用 scheduleCallbackWithExpirationTime。
-* 重置 deadline 和 deadlineDidExpire
+* 根据上面的陈述，当我们退出循环的时候，要么已经完成了工作，要么本次分配的空闲时间已经用完，所以如果仍然有待完成的工作，就调用 scheduleCallbackWithExpirationTime，为 performAsyncWork 再分配空闲时间。
+* 重置 deadline 和 deadlineDidExpire，注意重置的时机在下一次执行 performAsyncWork 之前。
 
 ### performWorkOnRoot
 
-*
+* 根据第二个参数 isExpired 的值来判断工作是否已经到期，同步更新等同于异步更新到期。
+* 不论工作有没有到期，都先看 root.finishedWork 是否存在，如果存在表示我们已经可以进入 commit 阶段了。
+* 否则先调用 renderRoot 进入 render 阶段，结束之后再调用 completeRoot 进入 commit 阶段。工作到期或者没到期的区别在于传入 renderRoot 的第二个参数不同，以及在调用 completeRoot 之前是否需要再判断一次是否有剩余的空闲时间。如果没有空闲时间需要回到 performWork 中调用 scheduleCallbackWithExpirationTime。
+* 需要注意的是 isRendering 在 performWorkOnRoot 开始时置为 true，结束时置为 false，标志着渲染过程的开始和结束。
+
+### shouldYield
+
+判断本次调用 requestIdleCallback 分配的空闲时间是否有剩余，同时更新 deadlineDidExpire 的值。注意判断的依据 timeHeuristicForUnitOfWork 的值为 1。
+
+## render 阶段
+```javascript
+function renderRoot (root, isYieldy) {
+  isWorking = true
+  const expirationTime = root.expirationTime
+  if (expirationTime !== nextRenderExpirationTime || nextUnitOfWork === null) {
+    nextRenderExpirationTime = expirationTime
+    nextUnitOfWork = createWorkInProgress(root.current, null, nextRenderExpirationTime)
+  }
+  workLoop(isYieldy)
+  // We're done performing work. Time to clean up.
+  isWorking = false
+  if (nextUnitOfWork !== null) {
+    return
+  }
+  // Ready to commit.
+  root.finishedWork = root.current.alternate
+}
+
+function workLoop (isYieldy) {
+  if (!isYieldy) {
+    // Flush work without yielding
+    while (nextUnitOfWork !== null) {
+      nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
+    }
+  } else {
+    // Flush asynchronous work until the deadline runs out of time.
+    while (nextUnitOfWork !== null && !shouldYield()) {
+      nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
+    }
+  }
+}
+
+function performUnitOfWork (workInProgress) {
+  const current = workInProgress.alternate
+  let next = null
+  next = beginWork(current, workInProgress, nextRenderExpirationTime)
+  if (next === null) {
+    next = completeUnitOfWork(workInProgress)
+  }
+  return next
+}
+
+function beginWork (current, workInProgress, renderExpirationTime) {
+  // Before entering the begin phase, clear the expiration time.
+  workInProgress.expirationTime = NoWork
+  const Component = workInProgress.type
+  const unresolvedProps = workInProgress.pendingProps
+  switch (workInProgress.tag) {
+    case ClassComponent: {
+      return updateClassComponent(current, workInProgress, Component, unresolvedProps, renderExpirationTime)
+    }
+    case HostRoot: {
+      return updateHostRoot(current, workInProgress, renderExpirationTime)
+    }
+    case HostComponent:{
+      return updateHostComponent(current, workInProgress, renderExpirationTime)
+    }
+    default:
+      throw new Error('unknown unit of work tag') 
+  }
+}
+```
+
+
+```javascript
+function get(key) {
+  return key._reactInternalFiber
+}
+
+function set(key, value) {
+  key._reactInternalFiber = value
+}
+
+const classComponentUpdater = {
+  enqueueSetState: function (inst, payload) {
+    const fiber = get(inst)
+    const currentTime = requestCurrentTime()
+    const expirationTime = computeExpirationForFiber(currentTime)
+    const update = createUpdate()
+    update.payload = payload
+    enqueueUpdate(fiber, update)
+    scheduleWork(fiber, expirationTime)
+  }
+}
+
+function adoptClassInstance (workInProgress, instance) {
+  instance.updater = classComponentUpdater
+  workInProgress.stateNode = instance
+  set(instance, workInProgress)
+}
+
+function constructClassInstance (workInProgress, ctor, props) {
+  let instance =  new ctor(props)
+  workInProgress.memoizedState = instance.state !== null && instance.state !== undefined ? instance.state : null
+  adoptClassInstance(workInProgress, instance)
+  return instance
+}
+
+function applyDerivedStateFromProps (workInProgress, getDerivedStateFromProps, nextProps) {
+  const prevState = workInProgress.memoizedState
+  const partialState = getDerivedStateFromProps(nextProps, prevState)
+  const memoizedState = partialState === null || partialState === undefined ? prevState : Object.assign({}, prevState, partialState)
+  workInProgress.memoizedState = memoizedState
+  const updateQueue = workInProgress.updateQueue
+  if (updateQueue !== null && workInProgress.expirationTime === NoWork) {
+    updateQueue.baseState = memoizedState
+  }
+}
+
+function mountClassInstance(workInProgress, ctor, newProps) {
+  let instance = workInProgress.stateNode
+  instance.props = newProps
+  instance.state = workInProgress.memoizedState
+  const updateQueue = workInProgress.updateQueue
+  if (updateQueue !== null) {
+    processUpdateQueue(workInProgress, updateQueue)
+    instance.state = workInProgress.memoizedState
+  }
+  const getDerivedStateFromProps = ctor.getDerivedStateFromProps;
+  if (typeof getDerivedStateFromProps === 'function') {
+    applyDerivedStateFromProps(workInProgress, getDerivedStateFromProps, newProps);
+    instance.state = workInProgress.memoizedState
+  }
+}
+
+function checkShouldComponentUpdate (workInProgress, newProps, newState) {
+  const instance = workInProgress.stateNode
+  if (typeof instance.shouldComponentUpdate === 'function') {
+    const shouldUpdate = instance.shouldComponentUpdate(newProps, newState)
+    return shouldUpdate
+  }
+  return true
+}
+
+function updateClassInstance (current, workInProgress, ctor, newProps) {
+  const instance = workInProgress.stateNode
+  const oldProps = workInProgress.memoizedProps
+  instance.props = oldProps
+  const getDerivedStateFromProps = ctor.getDerivedStateFromProps
+  const oldState = workInProgress.memoizedState
+  let newState = instance.state = oldState
+  let updateQueue = workInProgress.updateQueue
+  if (updateQueue !== null) {
+    processUpdateQueue(
+      workInProgress,
+      updateQueue
+    )
+    newState = workInProgress.memoizedState
+  }
+  if (oldProps === newProps && oldState === newState) {
+    if (typeof instance.componentDidUpdate === 'function') {
+      if (
+        oldProps !== current.memoizedProps ||
+        oldState !== current.memoizedState
+      ) {
+        workInProgress.effectTag |= Update
+      }
+    }
+    if (typeof instance.getSnapshotBeforeUpdate === 'function') {
+      if (
+        oldProps !== current.memoizedProps ||
+        oldState !== current.memoizedState
+      ) {
+        workInProgress.effectTag |= Snapshot
+      }
+    }
+    return false
+  }
+
+  if (typeof getDerivedStateFromProps === 'function') {
+    applyDerivedStateFromProps(
+      workInProgress,
+      getDerivedStateFromProps,
+      newProps,
+    )
+    newState = workInProgress.memoizedState
+  }
+
+  const shouldUpdate = checkShouldComponentUpdate(
+    workInProgress,
+    newProps,
+    newState
+  )
+
+  if (shouldUpdate) {
+    if (typeof instance.componentDidUpdate === 'function') {
+      workInProgress.effectTag |= Update;
+    }
+    if (typeof instance.getSnapshotBeforeUpdate === 'function') {
+      workInProgress.effectTag |= Snapshot;
+    }
+  } else {
+    if (typeof instance.componentDidUpdate === 'function') {
+      if (
+        oldProps !== current.memoizedProps ||
+        oldState !== current.memoizedState
+      ) {
+        workInProgress.effectTag |= Update;
+      }
+    }
+    if (typeof instance.getSnapshotBeforeUpdate === 'function') {
+      if (
+        oldProps !== current.memoizedProps ||
+        oldState !== current.memoizedState
+      ) {
+        workInProgress.effectTag |= Snapshot;
+      }
+    }
+    workInProgress.memoizedProps = newProps
+    workInProgress.memoizedState = newState
+  }
+  instance.props = newProps
+  instance.state = newState
+  return shouldUpdate
+}
+
+function updateClassComponent (current, workInProgress, Component, nextProps, renderExpirationTime) {
+  let shouldUpdate
+  if (current === null) {
+    constructClassInstance(workInProgress, Component, nextProps)
+    mountClassInstance(workInProgress, Component, nextProps)
+    shouldUpdate = true
+  } else {
+    shouldUpdate = updateClassInstance(current, workInProgress, Component, nextProps)
+  }
+  return finishClassComponent(current, workInProgress, shouldUpdate, renderExpirationTime)
+}
+
+function cloneChildFibers(workInProgress) {
+  if (workInProgress.child === null) {
+    return
+  }
+
+  let currentChild = workInProgress.child
+  let newChild = createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime);
+  workInProgress.child = newChild
+  newChild.return = workInProgress
+  while (currentChild.sibling !== null) {
+    currentChild = currentChild.sibling
+    newChild = newChild.sibling = createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime);
+    newChild.return = workInProgress
+  }
+  newChild.sibling = null
+}
+
+function finishClassComponent (current, workInProgress, shouldUpdate, renderExpirationTime) {
+  if (!shouldUpdate) {
+    cloneChildFibers(workInProgress)
+  } else {
+    const instance = workInProgress.stateNode
+    const nextChildren = instance.render();
+    reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime)
+    memoizeState(workInProgress, instance.state)
+    memoizeProps(workInProgress, instance.props)
+  }
+  return workInProgress.child
+}
+
+function reconcileChildren (current, workInProgress, nextChildren, renderExpirationTime) {
+  if (current === null) {
+    shouldTrackSideEffects = false
+    workInProgress.child = reconcileChildFibers(workInProgress, null, nextChildren, renderExpirationTime);
+  } else {
+    shouldTrackSideEffects = true
+    workInProgress.child = reconcileChildFibers(workInProgress, current.child, nextChildren, renderExpirationTime);
+  }
+}
+
+function reconcileChildFibers(returnFiber, currentFirstChild, newChild, expirationTime) {
+  if (newChild) {
+    const childArray = Array.isArray(newChild) ? newChild : [newChild]
+    return reconcileChildrenArray(returnFiber, currentFirstChild, childArray, expirationTime)
+  } else {
+    return null
+  }
+}
+
+function createFiberFromElement (element, expirationTime) {
+  let fiber
+  const type = element.type
+  const pendingProps = element.props
+  let fiberTag
+  if (typeof type === 'function') {
+    fiberTag = ClassComponent
+  } else if (typeof type === 'string') {
+    fiberTag = HostComponent
+  } else {
+    fiberTag = PlaceholderComponent
+  }
+  fiber = new FiberNode(fiberTag, pendingProps)
+  fiber.type = type
+  fiber.expirationTime = expirationTime
+  return fiber
+}
+
+function useFiber (fiber, pendingProps, expirationTime) {
+  let clone = createWorkInProgress(fiber, pendingProps, expirationTime)
+  clone.sibling = null
+  return clone
+}
+function createChild (returnFiber, newChild, expirationTime) {
+  if (typeof newChild === 'object' && newChild !== null) {
+    let created = createFiberFromElement(newChild, expirationTime)
+    created.return = returnFiber
+    return created
+  }
+  return null
+}
+
+function updateElement (returnFiber, current, element, expirationTime) {
+  if (current !== null && current.type === element.type) {
+    // Update
+    const existing = useFiber(current, element.props, expirationTime)
+    existing.return = returnFiber
+    return existing
+  } else {
+    // Insert
+    const created = createFiberFromElement(element, expirationTime)
+    created.return = returnFiber
+    return created
+  } 
+}
+
+function updateSlot (returnFiber, oldFiber, newChild, expirationTime) {
+  if (typeof newChild === 'object' && newChild !== null) {
+    return updateElement(returnFiber, oldFiber, newChild, expirationTime)
+  }
+  return null
+}
+
+function reconcileChildrenArray (returnFiber, currentFirstChild, newChildren, expirationTime) {
+  let resultingFirstChild = null
+  let previousNewFiber = null
+  let oldFiber = currentFirstChild
+  let newIdx = 0
+  for (; oldFiber !== null && newIdx < newChildren.length; newIdx ++) {
+    let newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIdx], expirationTime)
+    if (resultingFirstChild === null) {
+      resultingFirstChild = newFiber
+    } else {
+      previousNewFiber.sibling = newFiber
+    }
+    previousNewFiber = newFiber
+    oldFiber = oldFiber.sibling
+  }
+ 
+  if (oldFiber === null) {
+    for (; newIdx < newChildren.length; newIdx++) {
+      let _newFiber = createChild(returnFiber, newChildren[newIdx], expirationTime)
+      if (shouldTrackSideEffects && _newFiber.alternate === null) {
+        _newFiber.effectTag = Placement
+      }     
+      if (resultingFirstChild === null) {
+        resultingFirstChild = _newFiber
+      } else {
+        previousNewFiber.sibling = _newFiber
+      }
+      previousNewFiber = _newFiber
+    }
+    return resultingFirstChild
+  }
+}
+
+function memoizeProps(workInProgress, nextProps) {
+  workInProgress.memoizedProps = nextProps
+}
+
+function memoizeState(workInProgress, nextState) {
+  workInProgress.memoizedState = nextState
+}
+
+function updateHostRoot (current, workInProgress, renderExpirationTime) {
+  const updateQueue = workInProgress.updateQueue
+  const prevState = workInProgress.memoizedState
+  const prevChildren = prevState !== null ? prevState.element : null
+  processUpdateQueue(workInProgress, updateQueue)
+  const nextState = workInProgress.memoizedState
+  const nextChildren = nextState.element
+  if (nextChildren === prevChildren) {
+    cloneChildFibers(workInProgress)
+    return workInProgress.child
+  }
+  reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime)
+  return workInProgress.child
+}
+
+function updateHostComponent (current, workInProgress, renderExpirationTime) {
+  const nextProps = workInProgress.pendingProps
+  let nextChildren = nextProps.children
+  const isDirectTextChild = shouldSetTextContent(nextProps)
+  if (isDirectTextChild) {
+    nextChildren = null
+  }
+  reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime)
+  memoizeProps(workInProgress, nextProps)
+  return workInProgress.child
+}
+
+function markUpdate(workInProgress) {
+  workInProgress.effectTag |= Update;
+}  
+
+function appendAllChildren (parent, workInProgress) {
+  let node = workInProgress.child
+  while (node !== null) {
+    if (node.tag === HostComponent) {
+      appendInitialChild(parent, node.stateNode);
+    } else if (node.child !== null) {
+      node.child.return = node
+      node = node.child
+      continue
+    }
+    if (node ===  workInProgress) {
+      return
+    }
+    while (node.sibling === null) {
+      if (node.return === null || node.return === workInProgress) {
+        return
+      }
+      node = node.return
+    }
+    node.sibling.return = node.return
+    node = node.sibling
+  }
+}
+
+function completeWork (current, workInProgress) {
+  const newProps = workInProgress.pendingProps
+  switch(workInProgress.tag) {
+    case ClassComponent: {
+      break
+    }
+    case HostRoot: {
+      break
+    }
+    case HostComponent: {
+      const type = workInProgress.type
+      if (current !== null && workInProgress.stateNode != null) {
+        const oldProps = current.memoizedProps
+        if (oldProps !== newProps) {
+          const updatePayload = prepareUpdate(oldProps, newProps)
+          workInProgress.updateQueue = updatePayload
+          if (updatePayload ) {
+            console.log('markUpdate')
+            markUpdate(workInProgress)
+          }
+        }
+      } else {
+        const _instance = createInstance(type, newProps, workInProgress)
+        appendAllChildren(_instance, workInProgress)
+        finalizeInitialChildren(_instance, newProps)
+        workInProgress.stateNode = _instance
+      }
+      break
+    }
+    default: {
+      throw new Error('Unknown unit of work tag')
+    }
+  }
+  return null
+}
+
+function completeUnitOfWork (workInProgress) {
+  while (true) {
+    const current = workInProgress.alternate
+    const returnFiber = workInProgress.return
+    const siblingFiber = workInProgress.sibling
+    // This fiber completed.
+    completeWork(current, workInProgress)
+    if (returnFiber !== null &&
+      (returnFiber.effectTag & Incomplete) === NoEffect) {
+        if (returnFiber.firstEffect === null) {
+          returnFiber.firstEffect = workInProgress.firstEffect
+        }
+        if (workInProgress.lastEffect !== null) {
+          if (returnFiber.lastEffect !== null) {
+            returnFiber.lastEffect.nextEffect = workInProgress.firstEffect
+          }
+          returnFiber.lastEffect = workInProgress.lastEffect
+        }
+
+        const effectTag = workInProgress.effectTag
+        if (effectTag > PerformedWork) {
+          if (returnFiber.lastEffect !== null) {
+            returnFiber.lastEffect.nextEffect = workInProgress
+          } else {
+            returnFiber.firstEffect = workInProgress
+          }
+          returnFiber.lastEffect = workInProgress
+        }
+      }
+
+    if (siblingFiber !== null) {
+      // If there is more work to do in this returnFiber, do that next.
+      return siblingFiber
+    } else if (returnFiber !== null) {
+      // If there's no more work in this returnFiber. Complete the returnFiber.
+      workInProgress = returnFiber
+      continue
+    } else {
+      // We've reached the root.
+      return null
+    }
+  }
+}
+```

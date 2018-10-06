@@ -1266,7 +1266,7 @@ function completeUnitOfWork (workInProgress) {
   // next sibling. If there are no more siblings, return to the
   // parent fiber.
   while (true) {
-    const current = workInProgress.alternate;
+    const current = workInProgress.alternate
     const returnFiber = workInProgress.return
     const siblingFiber = workInProgress.sibling
     if ((workInProgress.effectTag & Incomplete) === NoEffect) {
@@ -1280,13 +1280,13 @@ function completeUnitOfWork (workInProgress) {
           // list of the parent. The completion order of the children affects the
           // side-effect order.
           if (returnFiber.firstEffect === null) {
-            returnFiber.firstEffect = workInProgress.firstEffect;
+            returnFiber.firstEffect = workInProgress.firstEffect
           }
           if (workInProgress.lastEffect !== null) {
             if (returnFiber.lastEffect !== null) {
-              returnFiber.lastEffect.nextEffect = workInProgress.firstEffect;
+              returnFiber.lastEffect.nextEffect = workInProgress.firstEffect
             }
-            returnFiber.lastEffect = workInProgress.lastEffect;
+            returnFiber.lastEffect = workInProgress.lastEffect
           }
 
           // If this fiber had side-effects, we append it AFTER the children's
@@ -1295,16 +1295,16 @@ function completeUnitOfWork (workInProgress) {
           // to schedule our own side-effect on our own list because if end up
           // reusing children we'll schedule this effect onto itself since we're
           // at the end.
-          var effectTag = workInProgress.effectTag;
+          const effectTag = workInProgress.effectTag
           // Skip both NoWork and PerformedWork tags when creating the effect list.
           // PerformedWork effect is read by React DevTools but shouldn't be committed.
           if (effectTag > PerformedWork) {
             if (returnFiber.lastEffect !== null) {
-              returnFiber.lastEffect.nextEffect = workInProgress;
+              returnFiber.lastEffect.nextEffect = workInProgress
             } else {
-              returnFiber.firstEffect = workInProgress;
+              returnFiber.firstEffect = workInProgress
             }
-            returnFiber.lastEffect = workInProgress;
+            returnFiber.lastEffect = workInProgress
           }
         }
 
@@ -1314,11 +1314,11 @@ function completeUnitOfWork (workInProgress) {
         return siblingFiber;
       } else if (returnFiber !== null) {
         // If there's no more work in this returnFiber. Complete the returnFiber.
-        workInProgress = returnFiber;
-        continue;
+        workInProgress = returnFiber
+        continue
       } else {
         // We've reached the root.
-        return null;
+        return null
       }
     } else {
       // This fiber did not complete because something threw. Pop values off
