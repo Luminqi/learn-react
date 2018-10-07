@@ -628,6 +628,7 @@ function renderRoot (root, isYieldy) {
 
   // Ready to commit.
   root.finishedWork = rootWorkInProgress
+  console.log('after renderRoot, root: ', root)
 }
 
 function workLoop (isYieldy) {

@@ -3,7 +3,7 @@
 
 在 CustomRenderer 章节，我们定义了一个简单组件，通过初次渲染和点击按钮，可以调试 React 的 mount 和 update 阶段。在 ReactReconciler 中的函数入口加上 console.log, 可以得到其触发函数的流程图。
 
-![flowchart](Images/Fiber_flowchart.PNG)
+![flowchart](Images/flowchart.PNG)
 
 注意这不是完整的 React 内部被触发的函数流程图。我已经省略了许多与错误处理等功能相关的函数，并且没有把我决定留下的函数都放在图中，这是为了尽可能不让它看起来过于复杂。
 
@@ -364,7 +364,8 @@ function performWorkOnRoot(root, isExpired) {
 
 * 根据第二个参数 isExpired 的值来判断工作是否已经到期，同步更新等同于异步更新到期。
 * 不论工作有没有到期，都先看 root.finishedWork 是否存在，如果存在表示我们已经可以进入 commit 阶段了。
-* 否则先调用 renderRoot 进入 render 阶段，结束之后再调用 completeRoot 进入 commit 阶段。工作到期或者没到期的区别在于传入 renderRoot 的第二个参数不同，以及在调用 completeRoot 之前是否需要再判断一次是否有剩余的空闲时间。如果没有空闲时间需要回到 performWork 中调用 scheduleCallbackWithExpirationTime。
+* 否则先调用 renderRoot 进入 render 阶段，结束之后再调用 completeRoot 进入 commit 阶段。工作到期或者没到期的区别在于传入 renderRoot 的第二个参数不同，以及在调用 completeRoot 之前是否需要再判断一次是否有剩余的空闲时间。
+* 异步任务有两种情况会因为没有空闲时间而回到 performWork 中，一种是在执行 renderRoot 过程中就已经用完了空闲时间，一种是在执行 completeRoot 之前已经没有了空闲时间。回到 performWork 中之后，如果任务的预期完成期限已经到期，就会同步执行任务，否则调用 scheduleCallbackWithExpirationTime 分配新的空闲时间。
 * 需要注意的是 isRendering 在 performWorkOnRoot 开始时置为 true，结束时置为 false，标志着渲染过程的开始和结束。
 
 ### shouldYield
@@ -373,6 +374,55 @@ function performWorkOnRoot(root, isExpired) {
 
 ## render 阶段
 ```javascript
+let nextUnitOfWork = null
+
+// This is used to create an alternate fiber to do work on.
+function createWorkInProgress(current, pendingProps, expirationTime) {
+  console.log('createWorkInProgress')
+  let workInProgress = current.alternate
+  if (workInProgress === null) {
+    // We use a double buffering pooling technique because we know that we'll
+    // only ever need at most two versions of a tree. We pool the "other" unused
+    // node that we're free to reuse. This is lazily created to avoid allocating
+    // extra objects for things that are never updated. It also allow us to
+    // reclaim the extra memory if needed.
+    workInProgress = new FiberNode(current.tag, pendingProps)
+    workInProgress.type = current.type
+    workInProgress.stateNode = current.stateNode
+    workInProgress.alternate = current
+    current.alternate = workInProgress
+  } else {
+    workInProgress.pendingProps = pendingProps
+
+    // We already have an alternate.
+    // Reset the effect tag.
+    workInProgress.effectTag = NoEffect
+
+    // The effect list is no longer valid.
+    workInProgress.nextEffect = null
+    workInProgress.firstEffect = null
+    workInProgress.lastEffect = null
+  }
+
+  if (pendingProps !== current.pendingProps) {
+    // This fiber has new props.
+    workInProgress.expirationTime = expirationTime
+  } else {
+    // This fiber's props have not changed.
+    workInProgress.expirationTime = current.expirationTime
+  }
+
+  workInProgress.child = current.child
+  workInProgress.memoizedProps = current.memoizedProps
+  workInProgress.memoizedState = current.memoizedState
+  workInProgress.updateQueue = current.updateQueue
+
+  // These will be overridden during the parent's reconciliation
+  workInProgress.sibling = current.sibling
+
+  return workInProgress
+}
+
 function renderRoot (root, isYieldy) {
   isWorking = true
   const expirationTime = root.expirationTime
@@ -434,9 +484,51 @@ function beginWork (current, workInProgress, renderExpirationTime) {
   }
 }
 ```
+新出现的全局变量 nextUnitOfWork 代表我们正在工作的 work-in-progress fiber。当我们在初始 mount 阶段时，current fiber 树只有一个根节点。在 renderRoot 函数中，会调用 createWorkInProgress 生成一个 work-in-progress 根节点，然后这个节点就会作为第一个被传入 performUnitOfWork 的 fiber。performUnitOfWork 会最终返回一个传入节点的子节点，这个节点本身又会被传入 performUnitOfWork，直到生成一颗完整的 work-in-progress fiber 树。这颗 work-in-progress fiber 树被 commit 之后，就会赋值给 root.current，成为新的 current fiber 树。
 
+在 update 阶段，一样的过程被重复，不同的地方是current fiber 树不仅仅只有一个根节点，而是之前被 commit 的 work-in-progress fiber 树。
 
+### renderRoot
+
+* nextUnitOfWork 初始化为根节点的 work-in-progress fiber。
+* 开始 workLoop，注意 workLoop 的前后 isWorking 的值。
+* 从 workLoop 中返回之后，如果 nextUnitOfWork 仍然存在， 那么直接返回。这种情况意味着我们在 workLoop 中耗尽了本次分配的空闲时间，而没有完成所有的任务。
+* 否则，设置 root.finishedWork 为 root 的 work-in-progress fiber，注意不是 root.current，因为所有的副作用都标志在 work-in-progress fiber 上。
+
+### workLoop
+
+* 同步和异步的区别在于 while 循环是否需要判断空闲时间是否使用完，同步任务会一直执行到结束(nextUnitOfWork === null)，而异步任务会因为没有空闲时间而返回(nextUnitOfWork !== null)
+
+### performUnitOfWork
+
+* 先调用 beginWork 生成 work-in-progress fiber 的 child
+* 如果 child 不存在，表示我们当前的  work-in-progress fiber 没有子节点了，调用 completeUnitOfWork。
+
+### beginWork
+
+* 根据 tag 来调用函数。简化了逻辑，只支持 ClassComponent，HostRoot 和 HostComponent。三个函数都会生成并返回 workInProgress.child。
+* 在前面一章已经提到，tag 为 ClassComponent 的 fiber 的 type 属性是构造函数，这个构造函数会传入 updateClassComponent。
+ 
 ```javascript
+function updateClassComponent (current, workInProgress, Component, nextProps, renderExpirationTime) {
+  let shouldUpdate
+  if (current === null) {
+    constructClassInstance(workInProgress, Component, nextProps)
+    mountClassInstance(workInProgress, Component, nextProps)
+    shouldUpdate = true
+  } else {
+    shouldUpdate = updateClassInstance(current, workInProgress, Component, nextProps)
+  }
+  return finishClassComponent(current, workInProgress, shouldUpdate, renderExpirationTime)
+}
+
+function constructClassInstance (workInProgress, ctor, props) {
+  let instance =  new ctor(props)
+  workInProgress.memoizedState = instance.state !== null && instance.state !== undefined ? instance.state : null
+  adoptClassInstance(workInProgress, instance)
+  return instance
+}
+
 function get(key) {
   return key._reactInternalFiber
 }
@@ -461,26 +553,34 @@ function adoptClassInstance (workInProgress, instance) {
   instance.updater = classComponentUpdater
   workInProgress.stateNode = instance
   set(instance, workInProgress)
-}
 
-function constructClassInstance (workInProgress, ctor, props) {
-  let instance =  new ctor(props)
-  workInProgress.memoizedState = instance.state !== null && instance.state !== undefined ? instance.state : null
-  adoptClassInstance(workInProgress, instance)
-  return instance
 }
+```
+更新 class 组件的逻辑最复杂，mount 和 update 阶段需要做的事情不同。updateClassComponent 根据 current 参数是否存在来判断是 mount 阶段还是 update 阶段。可以这么做的原因上面已经提到过，是因为如果是 update 阶段，则必然存在一个与之对应的current fiber。而 mount 阶段只存在 work-in-progress fiber。
 
-function applyDerivedStateFromProps (workInProgress, getDerivedStateFromProps, nextProps) {
-  const prevState = workInProgress.memoizedState
-  const partialState = getDerivedStateFromProps(nextProps, prevState)
-  const memoizedState = partialState === null || partialState === undefined ? prevState : Object.assign({}, prevState, partialState)
-  workInProgress.memoizedState = memoizedState
-  const updateQueue = workInProgress.updateQueue
-  if (updateQueue !== null && workInProgress.expirationTime === NoWork) {
-    updateQueue.baseState = memoizedState
-  }
+### constructClassInstance
+
+第二个参数是类的构造函数，首先创建一个实例，然后用实例的 state 来更新 workInProgress.memoizedState，最后调用 adoptClassInstance。
+
+### adoptClassInstance
+
+当我们声明一个类组件时，会继承 React.Component 的 setState 函数。
+
+``` javascript
+// React 源码
+Component.prototype.setState = function(partialState, callback) {
+  this.updater.enqueueSetState(this, partialState, callback, 'setState')
 }
+```
+而实例的 updater 属性会在 adoptClassInstance 中被更新。所以当我们调用 this.setState 时，实际上会调用 enqueueSetState。
+注意 workInProgress.stateNode 会设置为这个实例，而这个实例的 _reactInternalFiber 属性会设置为 workInProgress。
 
+### enqueueSetState
+
+首先从实例的 _reactInternalFiber 属性中得到对应的 fiber。然后计算 fiber 的工作期限。接着更新 fiber 的 updateQueue 属性。
+注意更新的 payload 是我们调用 this.setState 时传入的对象。最后调用 scheduleWork。
+
+```javascript
 function mountClassInstance(workInProgress, ctor, newProps) {
   let instance = workInProgress.stateNode
   instance.props = newProps
@@ -496,6 +596,30 @@ function mountClassInstance(workInProgress, ctor, newProps) {
     instance.state = workInProgress.memoizedState
   }
 }
+
+function applyDerivedStateFromProps (workInProgress, getDerivedStateFromProps, nextProps) {
+  const prevState = workInProgress.memoizedState
+  const partialState = getDerivedStateFromProps(nextProps, prevState)
+  const memoizedState = partialState === null || partialState === undefined ? prevState : Object.assign({}, prevState, partialState)
+  workInProgress.memoizedState = memoizedState
+  const updateQueue = workInProgress.updateQueue
+  if (updateQueue !== null && workInProgress.expirationTime === NoWork) {
+    updateQueue.baseState = memoizedState
+  }
+}
+```
+
+### mountClassInstance
+
+值得注意的是遇到了生命周期函数 getDerivedStateFromProps。[react-lifecycle-methods-diagram](http://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/) 表明了生命周期函数的触发时机。getDerivedStateFromProps 在 mount 和 update 阶段都会被调用，而且是在 render 函数之前被调用。
+
+
+
+
+``` javascript
+
+
+
 
 function checkShouldComponentUpdate (workInProgress, newProps, newState) {
   const instance = workInProgress.stateNode
@@ -588,17 +712,7 @@ function updateClassInstance (current, workInProgress, ctor, newProps) {
   return shouldUpdate
 }
 
-function updateClassComponent (current, workInProgress, Component, nextProps, renderExpirationTime) {
-  let shouldUpdate
-  if (current === null) {
-    constructClassInstance(workInProgress, Component, nextProps)
-    mountClassInstance(workInProgress, Component, nextProps)
-    shouldUpdate = true
-  } else {
-    shouldUpdate = updateClassInstance(current, workInProgress, Component, nextProps)
-  }
-  return finishClassComponent(current, workInProgress, shouldUpdate, renderExpirationTime)
-}
+
 
 function cloneChildFibers(workInProgress) {
   if (workInProgress.child === null) {
@@ -769,7 +883,9 @@ function updateHostComponent (current, workInProgress, renderExpirationTime) {
   memoizeProps(workInProgress, nextProps)
   return workInProgress.child
 }
+```
 
+```javascript
 function markUpdate(workInProgress) {
   workInProgress.effectTag |= Update;
 }  

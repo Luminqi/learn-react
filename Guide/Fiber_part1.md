@@ -196,6 +196,7 @@ index 会用来判断元素是否发生了移动，我会忽略这个属性，�
 
 ### pendingProps, memoizedProps 和 memoizedState
 
+* pendingProps：组件即将接收到的 props
 不同 tag 的 fiber 有不同的可能的值 
 
 ### updateQueue
