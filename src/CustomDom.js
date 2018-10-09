@@ -1,36 +1,31 @@
-import ReactReconciler from 'react-reconciler'
+import ReactReconciler from './reconciler/Reconciler'
+// import ReactReconciler from 'react-reconciler'
 
 const hostConfig = {
   now: () => {
     return performance.now
   },
-  getRootHostContext: () => {
-    return null
-  },
-  getChildHostContext: () => {
-    return null
-  },
-  shouldSetTextContent: (type, props) => {
+  shouldSetTextContent: (props) => {
     return typeof props.children === 'string' || typeof props.children === 'number'
   },
   createInstance: (type) => {
     const domElement = document.createElement(type)
     return domElement
   },
-  finalizeInitialChildren: (domElement, type, props) => {
+  finalizeInitialChildren: (domElement, props) => {
     Object.keys(props).forEach(propKey => {
-      const propValue = props[propKey];
+      const propValue = props[propKey]
       if (propKey === 'children') {
         if (typeof propValue === 'string' || typeof propValue === 'number') {
-          domElement.textContent = propValue;
+          domElement.textContent = propValue
         }
       } else if (propKey === 'className') {
-        domElement.setAttribute('class', propValue);
+        domElement.setAttribute('class', propValue)
       } else if (propKey === 'onClick') {
         domElement.addEventListener('click', propValue)
       } else {
-        const propValue = props[propKey];
-        domElement.setAttribute(propKey, propValue);
+        const propValue = props[propKey]
+        domElement.setAttribute(propKey, propValue)
       }
     })
     return false
@@ -38,21 +33,13 @@ const hostConfig = {
   appendInitialChild: (parentInstance, child) => {
     parentInstance.appendChild(child)
   },
-  prepareForCommit: () => {
-  },
-  resetAfterCommit: () => {
-  },
-  supportsMutation: true,
   appendChildToContainer: (container, child) => {
     container.appendChild(child)
   },
   scheduleDeferredCallback: (callback, options) => {
     requestIdleCallback(callback, options)
   },
-  shouldDeprioritizeSubtree: () => {
-    return false
-  },
-  prepareUpdate: (domElement, type, oldProps, newProps) => {
+  prepareUpdate: (oldProps, newProps) => {
     let updatePayload = null
     Object.keys(newProps).forEach(propKey => {
       let nextProp = newProps[propKey]
