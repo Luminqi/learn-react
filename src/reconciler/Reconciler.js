@@ -21,6 +21,7 @@ import {
   PerformedWork,
   Placement,
   Update,
+  PlacementAndUpdate,
   DidCapture,
   Snapshot,
   HostEffectMask,
@@ -91,7 +92,6 @@ const hostConfig = {
     console.log('child: ', child)
     parentInstance.appendChild(child)
   },
-  supportsMutation: true,
   appendChildToContainer: (container, child) => {
     console.log('appendChildToContainer')
     console.log('container: ', container)
@@ -131,7 +131,11 @@ const hostConfig = {
     for (let i = 0; i < updatePayload.length; i += 2) {
       let propKey = updatePayload[i]
       let propValue = updatePayload[i + 1]
-      domElement.textContent = propValue
+      if (propKey === 'children') {
+        domElement.textContent = propValue
+      } else {
+        domElement[propKey] = propValue
+      }
     }
   }
 }
@@ -151,7 +155,7 @@ const commitUpdate = hostConfig.commitUpdate
 
 
 // Global Variables
-let scheduledRoot = null //represents nextFlushedRoot and nextFlushedExpirationTime, need to be updated at some points!!!
+let scheduledRoots = [] //represents nextFlushedRoot and nextFlushedExpirationTime, need to be updated at some points!!!
 
 let isRendering = false
 
@@ -220,6 +224,7 @@ function requestCurrentTime() {
     return currentSchedulerTime
   }
   // Check if there's pending work.
+  let scheduledRoot = scheduledRoots[0]
   if (!scheduledRoot) {
     // If there's no pending work, or if the pending work is offscreen, we can
     // read the current time without risk of tearing.
@@ -310,14 +315,7 @@ function scheduleWork (fiber, expirationTime) {
   console.log('scheduleWork')
   const root = scheduleWorkToRoot(fiber, expirationTime)
   root.expirationTime = expirationTime
-  if (
-    // If we're in the render phase, we don't need to schedule this root
-    // for an update, because we'll do it before we exit...
-    !isWorking ||
-    isCommitting
-  ) {
-    requestWork(root, expirationTime)
-  }
+  requestWork(root, expirationTime)
 }
 
 // function addRootToSchedule (root, expirationTime) {
@@ -344,8 +342,9 @@ function requestWork (root, expirationTime) {
   console.log('isRendering: ', isRendering)
   console.log('isBatchingUpdates: ', isBatchingUpdates)
   console.log('expirationTime: ', expirationTime)
-  scheduledRoot = root
+  scheduledRoots.push(root)
   if (isRendering) {
+    console.log('isRendering, return')
     // Prevent reentrancy. Remaining work will be scheduled at the end of
     // the currently rendering batch.
     return
@@ -386,26 +385,29 @@ function finishRendering () {
 
 function performWork (dl) {
   console.log('performWork')
-  deadline = dl;
+  deadline = dl
+  let scheduledRoot = scheduledRoots[0]
   // Keep working on roots until there's no more work, or until we reach
   // the deadline.
   if (deadline !== null) {
     recomputeCurrentRendererTime()
     currentSchedulerTime = currentRendererTime
     while (
-      scheduledRoot !== null &&
+      scheduledRoot &&
       (!deadlineDidExpire || currentRendererTime >= scheduledRoot.expirationTime)
     ) {
       performWorkOnRoot(
         scheduledRoot,
         currentRendererTime >= scheduledRoot.expirationTime
       )
+      scheduledRoot = scheduledRoots[0]
       recomputeCurrentRendererTime()
       currentSchedulerTime = currentRendererTime
     }
   } else {
-    while (scheduledRoot !== null) {
+    while (scheduledRoot) {
       performWorkOnRoot(scheduledRoot, true)
+      scheduledRoot = scheduledRoots[0]
     }
   }
  
@@ -1113,10 +1115,16 @@ function reconcileChildrenArray (returnFiber, currentFirstChild, newChildren, ex
 
 // TODO: Delete memoizeProps/State and move to reconcile/bailout instead
 function memoizeProps(workInProgress, nextProps) {
+  console.log('memoizeProps')
+  console.log('workInProgress.memoizedProps: ', workInProgress.memoizedProps)
+  console.log('nextProps: ', nextProps)
   workInProgress.memoizedProps = nextProps
 }
 
 function memoizeState(workInProgress, nextState) {
+  console.log('memoizeState')
+  console.log('workInProgress.memoizeState: ', workInProgress.memoizeState)
+  console.log('nextState: ', nextState)
   workInProgress.memoizedState = nextState
   // Don't reset the updateQueue, in case there are pending updates. Resetting
   // is handled by processUpdateQueue.
@@ -1356,8 +1364,10 @@ function completeUnitOfWork (workInProgress) {
 function completeRoot(root, finishedWork) {
   console.log('completeRoot')
   root.finishedWork = null
+  // This needs to happen before calling the lifecycles, since
+  // they may schedule additional updates.
+  scheduledRoots.shift()
   commitRoot(root, finishedWork)
-  scheduledRoot = null
 }
 
 function getHostParentFiber(fiber) {
@@ -1494,6 +1504,7 @@ function commitAllHostEffects (firstEffect) {
     const effectTag = nextEffect.effectTag
     console.log('effectTag: ', effectTag & (Placement | Update | Deletion))
     switch(effectTag & (Placement | Update | Deletion)) {
+      case PlacementAndUpdate:
       case Placement: {
         commitPlacement(nextEffect)
         // Clear the "placement" from effect tag so that we know that this is inserted, before
@@ -1636,13 +1647,13 @@ function dispatchEventWithBatch (nativeEvent) {
       if (isDispatchControlledEvent) {
         //performSyncWork
         isDispatchControlledEvent = previousIsDispatchControlledEvent
-        if (scheduledRoot) { // if event triggers update
+        if (scheduledRoots[0]) { // if event triggers update
           performSyncWork()
         }  
       } else {
         //performAysncWork
-        if (scheduledRoot) {
-          scheduleCallbackWithExpirationTime(scheduledRoot, scheduledRoot.expirationTime)
+        if (scheduledRoots[0]) {
+          scheduleCallbackWithExpirationTime(scheduledRoots[0], scheduledRoots[0].expirationTime)
         }
       }
     }

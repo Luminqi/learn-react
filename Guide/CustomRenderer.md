@@ -30,13 +30,8 @@ What's More
       constructor(props) {
         super(props);
         this.state = {
-          counter: 0,
-          value: ''
+          counter: 0
         };
-      }
-
-      handleChange = (event) => {
-        this.setState({value: event.target.value});
       }
 
       render() {
@@ -170,18 +165,18 @@ container其实就是一个Dom节点，组件会被渲染在它里面。
       },
       finalizeInitialChildren: (domElement, type, props) => {
         Object.keys(props).forEach(propKey => {
-          const propValue = props[propKey];
+          const propValue = props[propKey]
           if (propKey === 'children') {
             if (typeof propValue === 'string' || typeof propValue === 'number') {
-              domElement.textContent = propValue;
+              domElement.textContent = propValue
             }
           } else if (propKey === 'className') {
-            domElement.setAttribute('class', propValue);
+            domElement.setAttribute('class', propValue)
           } else if (propKey === 'onClick') {
             domElement.addEventListener('click', propValue)
           } else {
-            const propValue = props[propKey];
-            domElement.setAttribute(propKey, propValue);
+            const propValue = props[propKey]
+            domElement.setAttribute(propKey, propValue)
           }
         })
         return false
@@ -249,7 +244,7 @@ hostConfig 中所有的函数都会被 reconciler 模块用到，但是有些函
 
 ### finalizeInitialChildren
 
-设置 dom 节点的属性，需要注意的是简化了事件绑定，只能识别click事件。后面的事件处理章节将完善这部分逻辑
+设置 dom 节点的属性，需要注意的是简化了事件绑定，只能识别click事件。后面的事件处理章节将完善这部分逻辑。
 
 ### appendInitialChild 和 appendChildToContainer
 
@@ -266,8 +261,7 @@ hostConfig 中所有的函数都会被 reconciler 模块用到，但是有些函
 
 这两个函数将会在组件更新的过程中扮演重要的角色。prepareUpdate 判断组件更新前后 props 是否有变化,
 在我们这个简单组件的例子中主要是判断 props.children，即判断更新前后组件的后代是否发生了变化。将变化保存起来。
-commitUpdate 会真的应用这些变化，同样在我们的例子中，只考虑children的变化，所以设置 dom 节点的 textContent
-属性为新的后代。
+commitUpdate 会真的应用这些变化，同样在我们的例子中，只考虑children的变化，所以设置 dom 节点的 textContent 属性为新的后代。
 
 ## 结论
 

@@ -46,6 +46,20 @@ class App extends React.Component {
     this.setState({value: event.target.value});
   }
 
+  // shouldComponentUpdate () {
+  //   console.log('shouldComponentUpdate')
+  //   if (this.state.counter === 0) {
+  //     this.setState({counter: 1})
+  //   }
+  //   return true
+  // }
+
+  // componentDidMount () {
+  //   console.log('componentDidMount')
+  //   this.setState({counter:1, value: 'mount'})
+  // }
+  
+
   render() {
     return (
       <div className="App">
@@ -62,7 +76,7 @@ class App extends React.Component {
             <div className="counter-text">{this.state.counter}</div>
             <button className="increment-button" onClick={() => {
               this.setState({ counter: this.state.counter + 1 })
-              this.setState({ counter: this.state.counter + 1 })
+              this.setState({ value: this.state.value + 'a' })
             }}>
               +
             </button>

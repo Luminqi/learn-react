@@ -56,7 +56,7 @@ const CustomDom = {
     }
     customRenderer.updateContainer(reactElement, root)
   }
-};
+}
 
 // in Reconciler.js
 let scheduledRoot = null
@@ -86,7 +86,7 @@ function requestCurrentTime() {
   }
   if (!scheduledRoot) {
     recomputeCurrentRendererTime()
-    currentSchedulerTime = currentRendererTime;
+    currentSchedulerTime = currentRendererTime
     return currentSchedulerTime
   }
   return currentSchedulerTime
@@ -107,12 +107,12 @@ function computeExpirationForFiber (currentTime) {
     }
   } else {
     if (isBatchingInteractiveUpdates) {
-      expirationTime = computeInteractiveExpiration(currentTime);
+      expirationTime = computeInteractiveExpiration(currentTime)
     } else {
-      expirationTime = computeAsyncExpiration(currentTime);
+      expirationTime = computeAsyncExpiration(currentTime)
     }
   }
-  return expirationTime;
+  return expirationTime
 }
 ```
 
@@ -135,7 +135,7 @@ requestCurrentTime 函数有三种情况：
 
 * 如果现在 React 正在渲染，将返回现在的 currentSchedulerTime，对应的情况：在生命周期函数中调用 this.setState。
 * 如果 React 不在渲染且没有待完成的工作，将重新计算现在的相对时间。
-* 如果有待完成的工作，将返回现在的 currentSchedulerTime，对应的情况：在一个事件触发回调函数中调用多个 this.setState，所有的更新都将拥有和第一次 setState 时相同的 currentTime。
+* 如果有待完成的工作，将返回现在的 currentSchedulerTime，对应的情况：在一个事件触发回调函数中调用多个 this.setState，所有的更新都将拥有相同的 currentTime。
 
 ### computeExpirationForFiber
 
@@ -187,12 +187,7 @@ function scheduleWorkToRoot (fiber, expirationTime) {
 function scheduleWork (fiber, expirationTime) {
   const root = scheduleWorkToRoot(fiber, expirationTime)
   root.expirationTime = expirationTime
-  if (
-    !isWorking ||
-    isCommitting
-  ) { //don't understand
-    requestWork(root, expirationTime)
-  }
+  requestWork(root, expirationTime)
 }
 
 function requestWork (root, expirationTime) {
@@ -213,10 +208,10 @@ function requestWork (root, expirationTime) {
 }
 
 function scheduleCallbackWithExpirationTime(root, expirationTime) {
-  const currentMs = now() - originalStartTimeMs;
-  const expirationTimeMs = expirationTimeToMs(expirationTime);
-  const timeout = expirationTimeMs - currentMs;
-  scheduleDeferredCallback(performAsyncWork, {timeout});
+  const currentMs = now() - originalStartTimeMs
+  const expirationTimeMs = expirationTimeToMs(expirationTime)
+  const timeout = expirationTimeMs - currentMs
+  scheduleDeferredCallback(performAsyncWork, {timeout})
 }
 
 function performSyncWork() {
@@ -228,7 +223,7 @@ function performAsyncWork (dl) {
 }
 
 function performWork (dl) {
-  deadline = dl;
+  deadline = dl
   // Keep working on roots until there's no more work, or until we reach
   // the deadline.
   if (deadline !== null) {
@@ -257,11 +252,11 @@ function performWork (dl) {
     scheduleCallbackWithExpirationTime(
       scheduledRoot,
       scheduledRoot.expirationTime,
-    );
+    )
   }
   // Clean-up.
-  deadline = null;
-  deadlineDidExpire = false;
+  deadline = null
+  deadlineDidExpire = false
 }
 
 function shouldYield () {
@@ -295,10 +290,10 @@ function performWorkOnRoot(root, isExpired) {
     }
   } else {
     // Flush async work.
-    let finishedWork = root.finishedWork;
+    let finishedWork = root.finishedWork
     if (finishedWork !== null) {
       // This root is already complete. We can commit it.
-      completeRoot(root, finishedWork);
+      completeRoot(root, finishedWork)
     } else {
       root.finishedWork = null
       const isYieldy = true
@@ -329,7 +324,7 @@ function performWorkOnRoot(root, isExpired) {
 
 ### scheduleRootUpdate
 
-需要注意 update 的 payload 的 element 属性是一个 Element 对象。
+需要注意 update 的 payload，是一个对象。这个对象有一个 element 属性，保存的是一个 ReactElement 对象。
 
 ### scheduleWork
 
@@ -339,8 +334,8 @@ function performWorkOnRoot(root, isExpired) {
 
 ### requestWork
 
-* 如果 React 正在渲染，直接返回。
-* 如果正在批量更新，直接返回。
+* 如果 React 正在渲染，直接返回，对应在生命周期函数中调用 this.setState。
+* 如果正在批量更新，直接返回，对应在一个事件回调中调用 this.setState。
 * 如果是同步更新，调用 performSyncWork，否则调用 scheduleCallbackWithExpirationTime。
 
 ### scheduleCallbackWithExpirationTime
@@ -378,7 +373,6 @@ let nextUnitOfWork = null
 
 // This is used to create an alternate fiber to do work on.
 function createWorkInProgress(current, pendingProps, expirationTime) {
-  console.log('createWorkInProgress')
   let workInProgress = current.alternate
   if (workInProgress === null) {
     // We use a double buffering pooling technique because we know that we'll
@@ -497,7 +491,7 @@ function beginWork (current, workInProgress, renderExpirationTime) {
 
 ### workLoop
 
-* 同步和异步的区别在于 while 循环是否需要判断空闲时间是否使用完，同步任务会一直执行到结束(nextUnitOfWork === null)，而异步任务会因为没有空闲时间而返回(nextUnitOfWork !== null)
+* 同步和异步的区别在于 while 循环是否需要判断空闲时间是否使用完，同步任务会一直执行到结束，而异步任务会因为没有空闲时间而返回。
 
 ### performUnitOfWork
 
@@ -553,7 +547,76 @@ function adoptClassInstance (workInProgress, instance) {
   instance.updater = classComponentUpdater
   workInProgress.stateNode = instance
   set(instance, workInProgress)
+}
 
+function mountClassInstance(workInProgress, ctor, newProps) {
+  let instance = workInProgress.stateNode
+  instance.props = newProps
+  instance.state = workInProgress.memoizedState
+  const updateQueue = workInProgress.updateQueue
+  if (updateQueue !== null) {
+    processUpdateQueue(workInProgress, updateQueue)
+    instance.state = workInProgress.memoizedState
+  }
+}
+
+function updateClassInstance (current, workInProgress, ctor, newProps) {
+  const instance = workInProgress.stateNode
+  const oldProps = workInProgress.memoizedProps
+  instance.props = oldProps
+  const oldState = workInProgress.memoizedState
+  let newState = instance.state = oldState
+  let updateQueue = workInProgress.updateQueue
+  if (updateQueue !== null) {
+    processUpdateQueue(
+      workInProgress,
+      updateQueue
+    )
+    newState = workInProgress.memoizedState
+  }
+  if (oldProps === newProps && oldState === newState) {
+    return false
+  }
+  instance.props = newProps
+  instance.state = newState
+  return true
+}
+
+function finishClassComponent (current, workInProgress, shouldUpdate, renderExpirationTime) {
+  if (!shouldUpdate) {
+    cloneChildFibers(workInProgress)
+  } else {
+    const instance = workInProgress.stateNode
+    const nextChildren = instance.render()
+    reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime)
+    memoizeState(workInProgress, instance.state)
+    memoizeProps(workInProgress, instance.props)
+  }
+  return workInProgress.child
+}
+
+function cloneChildFibers(workInProgress) {
+  if (workInProgress.child === null) {
+    return
+  }
+  let currentChild = workInProgress.child
+  let newChild = createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime)
+  workInProgress.child = newChild
+  newChild.return = workInProgress
+  while (currentChild.sibling !== null) {
+    currentChild = currentChild.sibling
+    newChild = newChild.sibling = createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime)
+    newChild.return = workInProgress
+  }
+  newChild.sibling = null
+}
+
+function memoizeProps(workInProgress, nextProps) {
+  workInProgress.memoizedProps = nextProps
+}
+
+function memoizeState(workInProgress, nextState) {
+  workInProgress.memoizedState = nextState
 }
 ```
 更新 class 组件的逻辑最复杂，mount 和 update 阶段需要做的事情不同。updateClassComponent 根据 current 参数是否存在来判断是 mount 阶段还是 update 阶段。可以这么做的原因上面已经提到过，是因为如果是 update 阶段，则必然存在一个与之对应的current fiber。而 mount 阶段只存在 work-in-progress fiber。
@@ -580,177 +643,31 @@ Component.prototype.setState = function(partialState, callback) {
 首先从实例的 _reactInternalFiber 属性中得到对应的 fiber。然后计算 fiber 的工作期限。接着更新 fiber 的 updateQueue 属性。
 注意更新的 payload 是我们调用 this.setState 时传入的对象。最后调用 scheduleWork。
 
-```javascript
-function mountClassInstance(workInProgress, ctor, newProps) {
-  let instance = workInProgress.stateNode
-  instance.props = newProps
-  instance.state = workInProgress.memoizedState
-  const updateQueue = workInProgress.updateQueue
-  if (updateQueue !== null) {
-    processUpdateQueue(workInProgress, updateQueue)
-    instance.state = workInProgress.memoizedState
-  }
-  const getDerivedStateFromProps = ctor.getDerivedStateFromProps;
-  if (typeof getDerivedStateFromProps === 'function') {
-    applyDerivedStateFromProps(workInProgress, getDerivedStateFromProps, newProps);
-    instance.state = workInProgress.memoizedState
-  }
-}
-
-function applyDerivedStateFromProps (workInProgress, getDerivedStateFromProps, nextProps) {
-  const prevState = workInProgress.memoizedState
-  const partialState = getDerivedStateFromProps(nextProps, prevState)
-  const memoizedState = partialState === null || partialState === undefined ? prevState : Object.assign({}, prevState, partialState)
-  workInProgress.memoizedState = memoizedState
-  const updateQueue = workInProgress.updateQueue
-  if (updateQueue !== null && workInProgress.expirationTime === NoWork) {
-    updateQueue.baseState = memoizedState
-  }
-}
-```
-
 ### mountClassInstance
+* 更新 instance.props
+* processUpdateQueue， 更新 instance.state
+* 实际上这里会调用生命周期函数 getDerivedStateFromProps。
 
-值得注意的是遇到了生命周期函数 getDerivedStateFromProps。[react-lifecycle-methods-diagram](http://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/) 表明了生命周期函数的触发时机。getDerivedStateFromProps 在 mount 和 update 阶段都会被调用，而且是在 render 函数之前被调用。
+### updateClassInstance
 
+* 和 mountClassInstance 一样需要更新实例的 props 和 state
+* 这里实际上会调用生命周期函数 shouldComponentUpdate 来判断是否需要更新。这里简化为直接比较新旧 props 和 state 是否有变化，如果没有变化返回 false， 如果有变化则返回 true。
 
+### finishClassComponent
 
+* 如果不需要更新，调用 cloneChildFibers 直接复制现在的子 fiber 节点
+* 否则先调用实例的 render 函数，得到一个表示后代的 ReactElement 对象， 然后调用 reconcileChildren。
 
 ``` javascript
-
-
-
-
-function checkShouldComponentUpdate (workInProgress, newProps, newState) {
-  const instance = workInProgress.stateNode
-  if (typeof instance.shouldComponentUpdate === 'function') {
-    const shouldUpdate = instance.shouldComponentUpdate(newProps, newState)
-    return shouldUpdate
-  }
-  return true
-}
-
-function updateClassInstance (current, workInProgress, ctor, newProps) {
-  const instance = workInProgress.stateNode
-  const oldProps = workInProgress.memoizedProps
-  instance.props = oldProps
-  const getDerivedStateFromProps = ctor.getDerivedStateFromProps
-  const oldState = workInProgress.memoizedState
-  let newState = instance.state = oldState
-  let updateQueue = workInProgress.updateQueue
-  if (updateQueue !== null) {
-    processUpdateQueue(
-      workInProgress,
-      updateQueue
-    )
-    newState = workInProgress.memoizedState
-  }
-  if (oldProps === newProps && oldState === newState) {
-    if (typeof instance.componentDidUpdate === 'function') {
-      if (
-        oldProps !== current.memoizedProps ||
-        oldState !== current.memoizedState
-      ) {
-        workInProgress.effectTag |= Update
-      }
-    }
-    if (typeof instance.getSnapshotBeforeUpdate === 'function') {
-      if (
-        oldProps !== current.memoizedProps ||
-        oldState !== current.memoizedState
-      ) {
-        workInProgress.effectTag |= Snapshot
-      }
-    }
-    return false
-  }
-
-  if (typeof getDerivedStateFromProps === 'function') {
-    applyDerivedStateFromProps(
-      workInProgress,
-      getDerivedStateFromProps,
-      newProps,
-    )
-    newState = workInProgress.memoizedState
-  }
-
-  const shouldUpdate = checkShouldComponentUpdate(
-    workInProgress,
-    newProps,
-    newState
-  )
-
-  if (shouldUpdate) {
-    if (typeof instance.componentDidUpdate === 'function') {
-      workInProgress.effectTag |= Update;
-    }
-    if (typeof instance.getSnapshotBeforeUpdate === 'function') {
-      workInProgress.effectTag |= Snapshot;
-    }
-  } else {
-    if (typeof instance.componentDidUpdate === 'function') {
-      if (
-        oldProps !== current.memoizedProps ||
-        oldState !== current.memoizedState
-      ) {
-        workInProgress.effectTag |= Update;
-      }
-    }
-    if (typeof instance.getSnapshotBeforeUpdate === 'function') {
-      if (
-        oldProps !== current.memoizedProps ||
-        oldState !== current.memoizedState
-      ) {
-        workInProgress.effectTag |= Snapshot;
-      }
-    }
-    workInProgress.memoizedProps = newProps
-    workInProgress.memoizedState = newState
-  }
-  instance.props = newProps
-  instance.state = newState
-  return shouldUpdate
-}
-
-
-
-function cloneChildFibers(workInProgress) {
-  if (workInProgress.child === null) {
-    return
-  }
-
-  let currentChild = workInProgress.child
-  let newChild = createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime);
-  workInProgress.child = newChild
-  newChild.return = workInProgress
-  while (currentChild.sibling !== null) {
-    currentChild = currentChild.sibling
-    newChild = newChild.sibling = createWorkInProgress(currentChild, currentChild.pendingProps, currentChild.expirationTime);
-    newChild.return = workInProgress
-  }
-  newChild.sibling = null
-}
-
-function finishClassComponent (current, workInProgress, shouldUpdate, renderExpirationTime) {
-  if (!shouldUpdate) {
-    cloneChildFibers(workInProgress)
-  } else {
-    const instance = workInProgress.stateNode
-    const nextChildren = instance.render();
-    reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime)
-    memoizeState(workInProgress, instance.state)
-    memoizeProps(workInProgress, instance.props)
-  }
-  return workInProgress.child
-}
+let shouldTrackSideEffects = true
 
 function reconcileChildren (current, workInProgress, nextChildren, renderExpirationTime) {
   if (current === null) {
     shouldTrackSideEffects = false
-    workInProgress.child = reconcileChildFibers(workInProgress, null, nextChildren, renderExpirationTime);
+    workInProgress.child = reconcileChildFibers(workInProgress, null, nextChildren, renderExpirationTime)
   } else {
     shouldTrackSideEffects = true
-    workInProgress.child = reconcileChildFibers(workInProgress, current.child, nextChildren, renderExpirationTime);
+    workInProgress.child = reconcileChildFibers(workInProgress, current.child, nextChildren, renderExpirationTime)
   }
 }
 
@@ -763,64 +680,12 @@ function reconcileChildFibers(returnFiber, currentFirstChild, newChild, expirati
   }
 }
 
-function createFiberFromElement (element, expirationTime) {
-  let fiber
-  const type = element.type
-  const pendingProps = element.props
-  let fiberTag
-  if (typeof type === 'function') {
-    fiberTag = ClassComponent
-  } else if (typeof type === 'string') {
-    fiberTag = HostComponent
-  } else {
-    fiberTag = PlaceholderComponent
-  }
-  fiber = new FiberNode(fiberTag, pendingProps)
-  fiber.type = type
-  fiber.expirationTime = expirationTime
-  return fiber
-}
-
-function useFiber (fiber, pendingProps, expirationTime) {
-  let clone = createWorkInProgress(fiber, pendingProps, expirationTime)
-  clone.sibling = null
-  return clone
-}
-function createChild (returnFiber, newChild, expirationTime) {
-  if (typeof newChild === 'object' && newChild !== null) {
-    let created = createFiberFromElement(newChild, expirationTime)
-    created.return = returnFiber
-    return created
-  }
-  return null
-}
-
-function updateElement (returnFiber, current, element, expirationTime) {
-  if (current !== null && current.type === element.type) {
-    // Update
-    const existing = useFiber(current, element.props, expirationTime)
-    existing.return = returnFiber
-    return existing
-  } else {
-    // Insert
-    const created = createFiberFromElement(element, expirationTime)
-    created.return = returnFiber
-    return created
-  } 
-}
-
-function updateSlot (returnFiber, oldFiber, newChild, expirationTime) {
-  if (typeof newChild === 'object' && newChild !== null) {
-    return updateElement(returnFiber, oldFiber, newChild, expirationTime)
-  }
-  return null
-}
-
 function reconcileChildrenArray (returnFiber, currentFirstChild, newChildren, expirationTime) {
   let resultingFirstChild = null
   let previousNewFiber = null
   let oldFiber = currentFirstChild
   let newIdx = 0
+  // update
   for (; oldFiber !== null && newIdx < newChildren.length; newIdx ++) {
     let newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIdx], expirationTime)
     if (resultingFirstChild === null) {
@@ -831,7 +696,7 @@ function reconcileChildrenArray (returnFiber, currentFirstChild, newChildren, ex
     previousNewFiber = newFiber
     oldFiber = oldFiber.sibling
   }
- 
+  // placement
   if (oldFiber === null) {
     for (; newIdx < newChildren.length; newIdx++) {
       let _newFiber = createChild(returnFiber, newChildren[newIdx], expirationTime)
@@ -848,15 +713,76 @@ function reconcileChildrenArray (returnFiber, currentFirstChild, newChildren, ex
     return resultingFirstChild
   }
 }
+```
 
-function memoizeProps(workInProgress, nextProps) {
-  workInProgress.memoizedProps = nextProps
+shouldTrackSideEffects 代表了是否需要标记副作用。
+
+### reconcileChildren
+
+注意当我们在初始 mount 阶段时， 除了根节点有 current fiber 之外，其它的节点都没有 current fiber。所以initial mount 阶段只会标记根 fiber 节点的 effectTag。
+
+### reconcileChildrenArray
+
+这是核心的函数，这里会生成新的 work-in-progress fiber，且标记上 effectTag。
+
+为了简化，这里我并没有考虑删除的逻辑，因为对现在这个简单的组件来说，只存在初始 mount 阶段时，placement 的逻辑和后续点击按钮触发更新时，update 的逻辑。我也没有考虑，更新时 fiber 的类型发生变化的情况，因为这里从始至终只有文本节点在发生变化。
+
+* oldFiber 初始化为 returnFiber 下第一个子节点。如果存在，则代表发生的是更新，调用 updateSlot。
+* oldFiber 如果一开始就不存在或者完成了 update 的循环之后仍然有新的子节点存在，调用 createChild 生成新的 work-in-progress fiber。如果需要标记副作用， 就标记上 Placement。
+
+```javascript
+function updateSlot (returnFiber, oldFiber, newChild, expirationTime) {
+  if (typeof newChild === 'object' && newChild !== null) {
+    return updateElement(returnFiber, oldFiber, newChild, expirationTime)
+  }
+  return null
 }
 
-function memoizeState(workInProgress, nextState) {
-  workInProgress.memoizedState = nextState
+function updateElement (returnFiber, current, element, expirationTime) {
+  if (current !== null && current.type === element.type) {
+    const existing = useFiber(current, element.props, expirationTime)
+    existing.return = returnFiber
+    return existing
+  }
+  return null
 }
 
+function useFiber (fiber, pendingProps, expirationTime) {
+  let clone = createWorkInProgress(fiber, pendingProps, expirationTime)
+  clone.sibling = null
+  return clone
+}
+
+function createChild (returnFiber, newChild, expirationTime) {
+  if (typeof newChild === 'object' && newChild !== null) {
+    let created = createFiberFromElement(newChild, expirationTime)
+    created.return = returnFiber
+    return created
+  }
+  return null
+}
+
+function createFiberFromElement (element, expirationTime) {
+  let fiber
+  const type = element.type
+  const pendingProps = element.props
+  let fiberTag
+  if (typeof type === 'function') {
+    fiberTag = ClassComponent
+  } else if (typeof type === 'string') {
+    fiberTag = HostComponent
+  }
+  fiber = new FiberNode(fiberTag, pendingProps)
+  fiber.type = type
+  fiber.expirationTime = expirationTime
+  return fiber
+}
+```
+### updateSlot 和 createChild
+
+需要注意的是传入这两个函数的 newChild 参数应是一个 ReactElement 对象。
+
+```javascript
 function updateHostRoot (current, workInProgress, renderExpirationTime) {
   const updateQueue = workInProgress.updateQueue
   const prevState = workInProgress.memoizedState
@@ -885,16 +811,111 @@ function updateHostComponent (current, workInProgress, renderExpirationTime) {
 }
 ```
 
+### updateHostRoot 和 updateHostComponent
+
+* 注意在 scheduleRootUpdate 中，我们生成了一个 payload 是 { element } 的 Update 对象。所以在 updateHostRoot 中 processUpdateQueue 之后，可以通过 workInProgress.memoizedState.element 得到子节点。如果子节点未发生变化，调用 cloneChildFibers。 否则 reconcileChildren。
+* updateHostComponent 中如果子节点是一个文本节点，将置 nextChildren = null，这时候调用 reconcileChildren 实际上不会做任何事，这样就不会生成一个 tag 为 HostText 的 fiber 节点。能这么做的原因是 finalizeInitialChildren 中有判断 props.children 是文本节点的逻辑。
+
 ```javascript
+function completeUnitOfWork (workInProgress) {
+  // Attempt to complete the current unit of work, then move to the
+  // next sibling. If there are no more siblings, return to the
+  // parent fiber.
+  while (true) {
+    const current = workInProgress.alternate
+    const returnFiber = workInProgress.return
+    const siblingFiber = workInProgress.sibling
+    completeWork(current, workInProgress)
+    if (returnFiber !== null &&
+      // Do not append effects to parents if a sibling failed to complete
+      (returnFiber.effectTag & Incomplete) === NoEffect) {
+        // Append all the effects of the subtree and this fiber onto the effect
+        // list of the parent. The completion order of the children affects the
+        // side-effect order.
+        if (returnFiber.firstEffect === null) {
+          returnFiber.firstEffect = workInProgress.firstEffect
+        }
+        if (workInProgress.lastEffect !== null) {
+          if (returnFiber.lastEffect !== null) {
+            returnFiber.lastEffect.nextEffect = workInProgress.firstEffect
+          }
+          returnFiber.lastEffect = workInProgress.lastEffect
+        }
+        // If this fiber had side-effects, we append it AFTER the children's
+        // side-effects. We can perform certain side-effects earlier if
+        // needed, by doing multiple passes over the effect list. We don't want
+        // to schedule our own side-effect on our own list because if end up
+        // reusing children we'll schedule this effect onto itself since we're
+        // at the end.
+        const effectTag = workInProgress.effectTag
+        // Skip both NoWork and PerformedWork tags when creating the effect list.
+        // PerformedWork effect is read by React DevTools but shouldn't be committed.
+        if (effectTag >= Placement) {
+          if (returnFiber.lastEffect !== null) {
+            returnFiber.lastEffect.nextEffect = workInProgress
+          } else {
+            returnFiber.firstEffect = workInProgress
+          }
+          returnFiber.lastEffect = workInProgress
+        }
+      }
+    if (siblingFiber !== null) {
+      // If there is more work to do in this returnFiber, do that next.
+      return siblingFiber
+    } else if (returnFiber !== null) {
+      // If there's no more work in this returnFiber. Complete the returnFiber.
+      workInProgress = returnFiber
+      continue
+    } else {
+      // We've reached the root.
+      return null
+    }
+  }
+}
+
+function completeWork (current, workInProgress) {
+  const newProps = workInProgress.pendingProps
+  switch(workInProgress.tag) {
+    case ClassComponent: {
+      break
+    }
+    case HostRoot: {
+      break
+    }
+    case HostComponent: {
+      const type = workInProgress.type
+      if (current !== null && workInProgress.stateNode != null) {
+        const oldProps = current.memoizedProps
+        const updatePayload = prepareUpdate(oldProps, newProps)
+        workInProgress.updateQueue = updatePayload
+        if (updatePayload) {
+          markUpdate(workInProgress)
+        }
+      } else {
+        //initial pass
+        const _instance = createInstance(type, newProps, workInProgress)
+        appendAllChildren(_instance, workInProgress)
+        finalizeInitialChildren(_instance, newProps)
+        workInProgress.stateNode = _instance
+      }
+      break
+    }
+    default: {
+      throw new Error('Unknown unit of work tag')
+    }
+  }
+  return null
+}
+
 function markUpdate(workInProgress) {
-  workInProgress.effectTag |= Update;
+  workInProgress.effectTag |= Update
 }  
 
 function appendAllChildren (parent, workInProgress) {
   let node = workInProgress.child
   while (node !== null) {
     if (node.tag === HostComponent) {
-      appendInitialChild(parent, node.stateNode);
+      appendInitialChild(parent, node.stateNode)
     } else if (node.child !== null) {
       node.child.return = node
       node = node.child
@@ -913,84 +934,125 @@ function appendAllChildren (parent, workInProgress) {
     node = node.sibling
   }
 }
+```
 
-function completeWork (current, workInProgress) {
-  const newProps = workInProgress.pendingProps
-  switch(workInProgress.tag) {
-    case ClassComponent: {
-      break
-    }
-    case HostRoot: {
-      break
-    }
-    case HostComponent: {
-      const type = workInProgress.type
-      if (current !== null && workInProgress.stateNode != null) {
-        const oldProps = current.memoizedProps
-        if (oldProps !== newProps) {
-          const updatePayload = prepareUpdate(oldProps, newProps)
-          workInProgress.updateQueue = updatePayload
-          if (updatePayload ) {
-            console.log('markUpdate')
-            markUpdate(workInProgress)
-          }
-        }
-      } else {
-        const _instance = createInstance(type, newProps, workInProgress)
-        appendAllChildren(_instance, workInProgress)
-        finalizeInitialChildren(_instance, newProps)
-        workInProgress.stateNode = _instance
-      }
-      break
-    }
-    default: {
-      throw new Error('Unknown unit of work tag')
-    }
-  }
-  return null
+completeUnitOfWork 的逻辑 React 注释已经解释的很清楚了，这里不再赘述。我只强调一下最后所有的有副作用的 fiber 都将汇集到根节点 fiber 中。
+
+### completeWork
+
+* 如果是 initial mount 阶段，调用 createInstance 生成 DOM 节点，再调用 appendAllChildren 把当前节点下所有的直接子节点 append 到生成的 DOM 节点下，最后调用 finalizeInitialChildren 设置 DOM 节点的属性，绑定事件。
+* 如果是 update 阶段，调用 prepareUpdate 准备好更新的内容，并标记上 effectTag，当我们在 commit 阶段的时候会调用 commitUpdate 应用这些更新。
+
+## commit 阶段
+
+```javascript
+function completeRoot(root, finishedWork) {
+  root.finishedWork = null
+  scheduledRoot = null
+  commitRoot(root, finishedWork)
 }
 
-function completeUnitOfWork (workInProgress) {
-  while (true) {
-    const current = workInProgress.alternate
-    const returnFiber = workInProgress.return
-    const siblingFiber = workInProgress.sibling
-    // This fiber completed.
-    completeWork(current, workInProgress)
-    if (returnFiber !== null &&
-      (returnFiber.effectTag & Incomplete) === NoEffect) {
-        if (returnFiber.firstEffect === null) {
-          returnFiber.firstEffect = workInProgress.firstEffect
-        }
-        if (workInProgress.lastEffect !== null) {
-          if (returnFiber.lastEffect !== null) {
-            returnFiber.lastEffect.nextEffect = workInProgress.firstEffect
-          }
-          returnFiber.lastEffect = workInProgress.lastEffect
-        }
+function commitRoot(root, finishedWork) {
+  isWorking = true
+  isCommitting = true
+  root.expirationTime = NoWork
+  const firstEffect = finishedWork.firstEffect
+  commitAllHostEffects(firstEffect)
+  root.current = finishedWork
+  isCommitting = false
+  isWorking = false
+}
 
-        const effectTag = workInProgress.effectTag
-        if (effectTag > PerformedWork) {
-          if (returnFiber.lastEffect !== null) {
-            returnFiber.lastEffect.nextEffect = workInProgress
-          } else {
-            returnFiber.firstEffect = workInProgress
-          }
-          returnFiber.lastEffect = workInProgress
+function commitAllHostEffects (firstEffect) {
+  let nextEffect = firstEffect
+  while (nextEffect !== null) {
+    const effectTag = nextEffect.effectTag
+    switch(effectTag & (Placement | Update)) {
+      case Placement: {
+        commitPlacement(nextEffect)
+        nextEffect.effectTag &= ~Placement
+        break
+      }
+      case Update: {
+        commitWork(nextEffect)
+        break
+      }
+    }
+    nextEffect = nextEffect.nextEffect
+  }    
+}
+
+function commitPlacement (finishedWork) {
+  const parentFiber = getHostParentFiber(finishedWork)
+  const parent = parentFiber.tag === HostRoot ? parentFiber.stateNode.containerInfo : parentFiber.stateNode
+  let node = finishedWork
+  while (true) {
+    if (node.tag === HostComponent) {
+      appendChildToContainer(parent, node.stateNode)
+    } else if (node.child !== null) {
+      node.child.return = node
+      node = node.child
+      continue
+    }
+    if (node === finishedWork) {
+      return
+    }
+    while (node.sibling === null) {
+      if (node.return === null || node.return === finishedWork) {
+        return
+      }
+      node = node.return
+    }
+    node.sibling.return = node.return
+    node = node.sibling
+  }
+}
+
+function getHostParentFiber(fiber) {
+  let parent = fiber.return
+  while (parent !== null) {
+    if (isHostParent(parent)) {
+      return parent
+    }
+    parent = parent.return
+  }
+}
+
+function isHostParent(fiber) {
+  return fiber.tag === HostComponent || fiber.tag === HostRoot
+}
+
+function commitWork (finishedWork) {
+  switch (finishedWork.tag) {
+    case HostRoot: 
+    case ClassComponent: {
+      return
+    }
+    case HostComponent: {
+      const instance = finishedWork.stateNode
+      if (instance != null) {
+        const updatePayload = finishedWork.updateQueue
+        finishedWork.updateQueue = null
+        if (updatePayload !== null) {
+          commitUpdate(instance, updatePayload)
         }
       }
-
-    if (siblingFiber !== null) {
-      // If there is more work to do in this returnFiber, do that next.
-      return siblingFiber
-    } else if (returnFiber !== null) {
-      // If there's no more work in this returnFiber. Complete the returnFiber.
-      workInProgress = returnFiber
-      continue
-    } else {
-      // We've reached the root.
-      return null
+      return
+    }
+    default: {
+      throw new Error('This unit of work tag should not have side-effects')
     }
   }
 }
 ```
+
+commit 阶段的逻辑并不复杂。首先调用 completeRoot 重置 root.finishedWork 和 scheduledRoot，然后调用 commitRoot。在 commitRoot 中我忽略了生命周期函数的实现。
+
+
+
+
+
+
+
+
+

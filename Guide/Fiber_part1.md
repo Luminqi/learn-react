@@ -184,7 +184,7 @@ SimpleReact 不会使用 key 作为识别变化的依据。
 
 ![tree](Images/Fiber_Tree.PNG)
 
-return，child 和 sibling 属性构造了一颗 fiber 树
+return，child 和 sibling 属性构造了一颗 fiber 树。注意 child 引用的是当前 fiber 下第一个子 fiber。
 
 ### index
 
@@ -196,12 +196,12 @@ index 会用来判断元素是否发生了移动，我会忽略这个属性，�
 
 ### pendingProps, memoizedProps 和 memoizedState
 
-* pendingProps：组件即将接收到的 props
-不同 tag 的 fiber 有不同的可能的值 
+* pendingProps：组件收到的新的 props
+* memoizedProps：组件保存的旧的 props
+* memoizedState：组件保存的旧的 state
 
-### updateQueue
-
-状态更新保存在这里
+### updateQueue  
+状态更新保存在这里，实际上组件新的 state 会通过 processUpdateQueue 而得到。
 
 ### mode
 
@@ -345,7 +345,9 @@ function createFiberRoot (containerInfo) {
 computeAsyncExpiration 和 computeInteractiveExpiration 这两个方程都只接受一个参数，现在的时间，返回一个未来的期限。computeAsyncExpiration 会得到更长的期限，对应的是普通的异步任务。computeInteractiveExpiration 会得到相对更短的期限，意味着要更快完成，对应的是用户交互产生的任务，比如说用户的点击事件。
 
 对于 ReactUpdateQueue.js，我做了很多简化。我建议你去看看源码，里面有不错的注释，能帮你加深对 Fiber 的理解。
+
 简化之后的 ReactUpdateQueue.js：
+
 ```javascript
 import {NoWork} from './ReactFiberExpirationTime'
 // Assume when processing the updateQueue, process all updates together
@@ -416,5 +418,15 @@ export function processUpdateQueue (workInProgress, queue) {
 }
 
 ```
+### UpdateQueue 和 Update
+
+* 一个 UpdateQueue 实例有三个属性，baseState 表示现在的初始状态，firstUpdate 和 lastUpdate 分别指向第一个更新和最后一个更新。
+* 一个 Update 实例的 payload 表示更新的内容，next 指向下一个更新。
+
+### createUpdate, enqueueUpdate 和 processUpdateQueue
+
+* createUpdate 生成一个更新。
+* enqueueUpdate 将更新加入 fiber 的 updateQueue。
+* processUpdateQueue 处理 fiber 的 updateQueue，将 updateQueue 的 baseState 更新为最终状态，清空 firstUpdate 和 lastUpdate，把最终状态保存到 fiber 的 memoizedState 属性中。
 
 [下一章](Fiber_part2.md)
