@@ -71,6 +71,12 @@ const hostConfig = {
         if (typeof propValue === 'string' || typeof propValue === 'number') {
           domElement.textContent = propValue;
         }
+      } else if (propKey === 'style') {
+        const style = domElement.style
+        Object.keys(propValue).forEach(styleName => {
+          let styleValue = propValue[styleName]
+          style.setProperty(styleName, styleValue)
+        })
       } else if (propKey === 'className') {
         domElement.setAttribute('class', propValue);
       } else if (registrationNames.includes(propKey)) {
@@ -114,11 +120,23 @@ const hostConfig = {
     console.log('oldProps: ', oldProps)
     console.log('newProps: ', newProps)
     let updatePayload = null
+    let styleUpdates = null
     Object.keys(newProps).forEach(propKey => {
       let nextProp = newProps[propKey]
       let lastProp = oldProps[propKey]
       if (nextProp !== lastProp && (typeof nextProp === 'string' || typeof nextProp === 'number')) {
         (updatePayload = updatePayload || []).push(propKey, '' + nextProp)
+      }
+      if (propKey === 'style') {
+        for (let styleName in nextProp) {
+          if (nextProp.hasOwnProperty(styleName) && lastProp[styleName] !== nextProp[styleName]) {
+            styleUpdates = nextProp
+            break
+          }
+        }
+        if (styleUpdates) {
+          (updatePayload = updatePayload || []).push(propKey, styleUpdates)
+        }
       }
     })
     console.log('updatePayload: ', updatePayload)
@@ -133,6 +151,12 @@ const hostConfig = {
       let propValue = updatePayload[i + 1]
       if (propKey === 'children') {
         domElement.textContent = propValue
+      } else if (propKey === 'style'){
+        const style = domElement.style
+        Object.keys(propValue).forEach(styleName => {
+          let styleValue = propValue[styleName]
+          style.setProperty(styleName, styleValue)
+        })
       } else {
         domElement[propKey] = propValue
       }
@@ -356,7 +380,7 @@ function requestWork (root, expirationTime) {
   }
   if (expirationTime === Sync) {
     performSyncWork()
-  } {
+  } else {
     scheduleCallbackWithExpirationTime(root, expirationTime)
   }
 }

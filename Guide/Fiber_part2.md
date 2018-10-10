@@ -202,7 +202,7 @@ function requestWork (root, expirationTime) {
 
   if (expirationTime === Sync) {
     performSyncWork()
-  } {
+  } else {
     scheduleCallbackWithExpirationTime(root, expirationTime)
   }
 }
@@ -814,7 +814,7 @@ function updateHostComponent (current, workInProgress, renderExpirationTime) {
 ### updateHostRoot 和 updateHostComponent
 
 * 注意在 scheduleRootUpdate 中，我们生成了一个 payload 是 { element } 的 Update 对象。所以在 updateHostRoot 中 processUpdateQueue 之后，可以通过 workInProgress.memoizedState.element 得到子节点。如果子节点未发生变化，调用 cloneChildFibers。 否则 reconcileChildren。
-* updateHostComponent 中如果子节点是一个文本节点，将置 nextChildren = null，这时候调用 reconcileChildren 实际上不会做任何事，这样就不会生成一个 tag 为 HostText 的 fiber 节点。能这么做的原因是 finalizeInitialChildren 中有判断 props.children 是文本节点的逻辑。
+* updateHostComponent 中如果子节点是一个文本节点，将置 nextChildren = null，这时候调用 reconcileChildren 实际上不会做任何事，这样就不会生成额外的 tag 为 HostText 的 fiber 节点。能这么做的原因是 finalizeInitialChildren 中有判断 props.children 是文本节点的逻辑。
 
 ```javascript
 function completeUnitOfWork (workInProgress) {
@@ -936,7 +936,7 @@ function appendAllChildren (parent, workInProgress) {
 }
 ```
 
-completeUnitOfWork 的逻辑 React 注释已经解释的很清楚了，这里不再赘述。我只强调一下最后所有的有副作用的 fiber 都将汇集到根节点 fiber 中。
+completeUnitOfWork 的逻辑 React 注释已经解释的很清楚了，这里不再赘述。我只强调一下最后所有有副作用的 fiber 都将汇集到根节点 fiber 中。
 
 ### completeWork
 
@@ -1047,6 +1047,12 @@ function commitWork (finishedWork) {
 ```
 
 commit 阶段的逻辑并不复杂。首先调用 completeRoot 重置 root.finishedWork 和 scheduledRoot，然后调用 commitRoot。在 commitRoot 中我忽略了生命周期函数的实现。
+
+最后运行项目
+
+![gif](Images/customRenderer.gif)
+
+[下一章](Event.md)
 
 
 

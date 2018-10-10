@@ -1,7 +1,6 @@
 const interactiveEventTypeNames = [
   'blur',
   'cancel',
-  'change',
   'click',
   'close',
   'contextMenu',
