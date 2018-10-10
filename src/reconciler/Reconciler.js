@@ -144,7 +144,7 @@ function Reconciler (hostConfig) {
     }
     if (expirationTime === Sync) {
       performSyncWork()
-    } {
+    } else {
       scheduleCallbackWithExpirationTime(root, expirationTime)
     }
   }
