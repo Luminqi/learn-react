@@ -941,7 +941,7 @@ completeUnitOfWork 的逻辑 React 注释已经解释的很清楚了，这里不
 ### completeWork
 
 * 如果是 initial mount 阶段，调用 createInstance 生成 DOM 节点，再调用 appendAllChildren 把当前节点下所有的直接子节点 append 到生成的 DOM 节点下，最后调用 finalizeInitialChildren 设置 DOM 节点的属性，绑定事件。
-* 如果是 update 阶段，调用 prepareUpdate 准备好更新的内容，并标记上 effectTag，当我们在 commit 阶段的时候会调用 commitUpdate 应用这些更新。
+* 如果是 update 阶段，调用 prepareUpdate 准备好更新的内容，并标记上 effectTag，在 commit 阶段的时候会调用 commitUpdate 应用这些更新。
 
 ## commit 阶段
 

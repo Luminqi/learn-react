@@ -360,6 +360,7 @@ isDispatchControlledEvent 变量表示触发的事件是否是 controlled event�
 
 在文本框中输入字符：
 ![change](Images/event_change.PNG)
+
 可以看到调用了 performSyncWork。
 
-[下一章](ReactCore..md)
+[下一章](ReactCore.md)

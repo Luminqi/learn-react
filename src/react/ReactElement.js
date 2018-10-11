@@ -1,6 +1,6 @@
 class ReactElement {
   constructor (type, props) {
-    this.type = type,
+    this.type = type
     this.props = props
   }
 }
