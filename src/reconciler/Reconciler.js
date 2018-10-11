@@ -9,6 +9,7 @@ import {
 import { createUpdate, enqueueUpdate, processUpdateQueue } from './ReactUpdateQueue'
 import { createFiberRoot } from './ReactFiberRoot'
 import { FiberNode } from './ReactFiber'
+import { isInteractiveEvent } from '../event/isInteractiveEvent'
 import {
   ClassComponent,
   HostRoot, 
@@ -20,6 +21,7 @@ import {
   Update,
   Incomplete,
 } from '../shared/ReactSideEffectTags'
+import { traverseTwoPhase } from '../shared/ReactTreeTraversal'
 
 function Reconciler (hostConfig) {
   const now = hostConfig.now
@@ -39,6 +41,7 @@ function Reconciler (hostConfig) {
   let deadlineDidExpire = false
   let isBatchingInteractiveUpdates = false
   let isBatchingUpdates = false
+  let isDispatchControlledEvent = false
   let originalStartTimeMs = now()
   let currentRendererTime = msToExpirationTime(originalStartTimeMs)
   let currentSchedulerTime = currentRendererTime
@@ -144,12 +147,13 @@ function Reconciler (hostConfig) {
     }
     if (expirationTime === Sync) {
       performSyncWork()
-    } {
+    } else {
       scheduleCallbackWithExpirationTime(root, expirationTime)
     }
   }
 
   function scheduleCallbackWithExpirationTime(root, expirationTime) {
+    console.log('scheduleCallbackWithExpirationTime')
     const currentMs = now() - originalStartTimeMs
     const expirationTimeMs = expirationTimeToMs(expirationTime)
     const timeout = expirationTimeMs - currentMs
@@ -157,10 +161,12 @@ function Reconciler (hostConfig) {
   }
 
   function performSyncWork() {
+    console.log('performSyncWork')
     performWork(null)
   }
 
   function performAsyncWork (dl) {
+    console.log('performAsyncWork')
     performWork(dl)
   }
 
@@ -186,6 +192,7 @@ function Reconciler (hostConfig) {
       }
     }
     if (scheduledRoot) {
+      console.log('run out of time, schedule a new callback')
       scheduleCallbackWithExpirationTime(
         scheduledRoot,
         scheduledRoot.expirationTime,
@@ -764,9 +771,73 @@ function Reconciler (hostConfig) {
     isCommitting = false
     isWorking = false
   }
+
+  function dispatchEventWithBatch (nativeEvent) {
+    console.log('dispatchEventWithBatch')
+    console.log('nativeEvent.type: ', nativeEvent.type)
+    const type = nativeEvent.type
+    let previousIsBatchingInteractiveUpdates = isBatchingInteractiveUpdates
+    let previousIsBatchingUpdates = isBatchingUpdates
+    let previousIsDispatchControlledEvent = isDispatchControlledEvent
+    if (type === 'change') {
+      isDispatchControlledEvent = true
+    }
+    if (isInteractiveEvent(type)) {
+      isBatchingInteractiveUpdates = true
+    }
+    isBatchingUpdates = true
+    
+    try {
+      return dispatchEvent(nativeEvent) // why should we return a void func
+    } finally {
+      console.log('before leaving event handler')
+      isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates
+      isBatchingUpdates = previousIsBatchingUpdates
+      if (!isBatchingUpdates && !isRendering) {
+        if (isDispatchControlledEvent) {
+          //performSyncWork
+          isDispatchControlledEvent = previousIsDispatchControlledEvent
+          if (scheduledRoot) { // if event triggers update
+            performSyncWork()
+          }  
+        } else {
+          //performAysncWork
+          if (scheduledRoot) {
+            scheduleCallbackWithExpirationTime(scheduledRoot, scheduledRoot.expirationTime)
+          }
+        }
+      }
+    }
+  }
+  
+  function dispatchEvent (nativeEvent) {
+    console.log('dispatchEvent')
+    let listeners = []
+    const nativeEventTarget = nativeEvent.target || nativeEvent.srcElement
+    const targetInst = nativeEventTarget.internalInstanceKey
+    traverseTwoPhase(targetInst, accumulateDirectionalDispatches.bind(null, listeners), nativeEvent)
+    console.log('listeners: ', listeners)
+    listeners.forEach(listener => listener(nativeEvent))
+  }
+  
+  function accumulateDirectionalDispatches (acc, inst, phase, nativeEvent) {
+    let type = nativeEvent.type
+    let registrationName = 'on' + type[0].toLocaleUpperCase() + type.slice(1)
+    if (phase === 'captured') {
+      registrationName = registrationName + 'Capture'
+    }
+    const stateNode = inst.stateNode
+    const props = stateNode.internalEventHandlersKey
+    const listener = props[registrationName]
+    if (listener) {
+      acc.push(listener)
+    }
+  }
+
   return {
     createContainer,
-    updateContainer
+    updateContainer,
+    dispatchEventWithBatch
   }
 }
 
