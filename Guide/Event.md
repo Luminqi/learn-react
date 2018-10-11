@@ -166,7 +166,7 @@ hostConfig = {
 
 在必要的函数添加 console.log，运行项目。
 
-![wrong](event_wrong.PNG)
+![wrong](Images/event_wrong.PNG)
 
 如果点击 - 或 + 按钮，本应该调用 computeInteractiveExpiration，实际上却调用了 computeAsyncExpiration。而且会触发两次 scheduleCallbackWithExpirationTime，一次是 button 上绑定的回调函数被触发调用this.setState。另一次是由于事件冒泡，导致 ColorText 组件中的 div 上绑定的回调函数被触发调用 this.setState。这不是正确的行为，两次更新都 schedule 了更新。正确的行为应该是两次更新触发一次 scheduleCallbackWithExpirationTime。
 
@@ -178,5 +178,188 @@ hostConfig = {
 
 那么什么是 Controlled events？
 
-受控组件中，像<input>,<textarea>, 和 <select>这类表单元素的 change 事件是一个 Controlled event。
+受控组件中，像 &lt;input&gt;, &lt;textarea&gt;, 和 &lt;select&gt; 这类表单元素的 change 事件是一个 Controlled event。
 
+新建一个 isInteractiveEvent.js。
+
+```javascript
+const interactiveEventTypeNames = [
+  'blur',
+  'cancel',
+  'click',
+  // ...
+]
+const nonInteractiveEventTypeNames = [
+  'abort',
+  'animationEnd',
+  'animationIteration',
+  // ...
+]
+export const eventTypeNames = [...interactiveEventTypeNames, ...nonInteractiveEventTypeNames]
+export const bubblePhaseRegistrationNames = eventTypeNames.map(
+  name => 'on' + name[0].toLocaleUpperCase() + name.slice(1)
+)
+export const capturePhaseRegistrationNames = bubblePhaseRegistrationNames.map(
+  name => name + 'Capture'
+)
+export const registrationNames = [...bubblePhaseRegistrationNames, ...capturePhaseRegistrationNames]
+export function isInteractiveEvent (eventType) {
+  return interactiveEventTypeNames.includes(eventType)
+}
+```
+
+* registrationNames 包含了所有 interactiveEvent 和 nonInteractiveEvent 的名称。
+* isInteractiveEvent 判断事件是否属于 Interactive events。
+
+createInstance 和 finalizeInitialChildren 需要完善逻辑：
+
+```javascript
+hostConfig = {
+  createInstance: (type, props, internalInstanceHandle) => {
+    const domElement = document.createElement(type)
+    // 将传入节点的 props 和该节点的 fiber 保存在创建的 DOM 节点上
+    domElement.internalInstanceKey = internalInstanceHandle
+    domElement.internalEventHandlersKey = props
+    return domElement
+  },
+  finalizeInitialChildren: (domElement, props) => {
+    Object.keys(props).forEach(propKey => {
+      const propValue = props[propKey]
+      if (propKey === 'children') {
+        if (typeof propValue === 'string' || typeof propValue === 'number') {
+          domElement.textContent = propValue
+        }
+      } else if (propKey === 'style') {
+        const style = domElement.style
+        Object.keys(propValue).forEach(styleName => {
+          let styleValue = propValue[styleName]
+          style.setProperty(styleName, styleValue)
+        })
+      } else if (propKey === 'className') {
+        domElement.setAttribute('class', propValue)
+      } else if (registrationNames.includes(propKey) || propKey === 'onChange') {
+        // propKey 是事件名
+        let eventType = propKey.slice(2).toLocaleLowerCase()
+        if (eventType.endsWith('capture')) {
+          eventType = eventType.slice(0, -7)
+        }
+        // 所有的事件都绑定在 document 上
+        document.addEventListener(eventType, customRenderer.dispatchEventWithBatch)
+      } else {
+        const propValue = props[propKey]
+        domElement.setAttribute(propKey, propValue)
+      }
+    })
+  },
+}
+```
+
+在 Reconciler.js 中加入如下函数
+
+```javascript
+let isDispatchControlledEvent = false
+
+function dispatchEventWithBatch (nativeEvent) {
+  const type = nativeEvent.type
+  let previousIsBatchingInteractiveUpdates = isBatchingInteractiveUpdates
+  let previousIsBatchingUpdates = isBatchingUpdates
+  let previousIsDispatchControlledEvent = isDispatchControlledEvent
+  if (type === 'change') {
+    isDispatchControlledEvent = true
+  }
+  if (isInteractiveEvent(type)) {
+    isBatchingInteractiveUpdates = true
+  }
+  isBatchingUpdates = true
+  
+  try {
+    return dispatchEvent(nativeEvent)
+  } finally {
+    console.log('before leaving event handler')
+    isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates
+    isBatchingUpdates = previousIsBatchingUpdates
+    if (!isBatchingUpdates && !isRendering) {
+      if (isDispatchControlledEvent) {
+        isDispatchControlledEvent = previousIsDispatchControlledEvent
+        if (scheduledRoot) { // if event triggers update
+          performSyncWork()
+        }  
+      } else {
+        if (scheduledRoot) {
+          scheduleCallbackWithExpirationTime(scheduledRoot, scheduledRoot.expirationTime)
+        }
+      }
+    }
+  }
+}
+
+function dispatchEvent (nativeEvent) {
+  let listeners = []
+  const nativeEventTarget = nativeEvent.target || nativeEvent.srcElement
+  const targetInst = nativeEventTarget.internalInstanceKey
+  // 按照捕获和冒泡的顺序保存所有的回调函数
+  traverseTwoPhase(targetInst, accumulateDirectionalDispatches.bind(null, listeners), nativeEvent)
+  // 触发所有的回调函数
+  listeners.forEach(listener => listener(nativeEvent))
+}
+
+function accumulateDirectionalDispatches (acc, inst, phase, nativeEvent) {
+  let type = nativeEvent.type
+  let registrationName = 'on' + type[0].toLocaleUpperCase() + type.slice(1)
+  if (phase === 'captured') {
+    registrationName = registrationName + 'Capture'
+  }
+  const stateNode = inst.stateNode
+  const props = stateNode.internalEventHandlersKey
+  const listener = props[registrationName]
+  if (listener) {
+    acc.push(listener)
+  }
+}
+
+function getParent(inst) {
+  do {
+    inst = inst.return
+  } while (inst && inst.tag !== HostComponent)
+  if (inst) {
+    return inst
+  }
+  return null
+}
+
+// Simulates the traversal of a two-phase, capture/bubble event dispatch.
+export function traverseTwoPhase(inst, fn, arg) {
+  const path = []
+  while (inst) {
+    path.push(inst)
+    inst = getParent(inst)
+  }
+  let i
+  for (i = path.length; i-- > 0; ) {
+    fn(path[i], 'captured', arg)
+  }
+  for (i = 0; i < path.length; i++) {
+    fn(path[i], 'bubbled', arg)
+  }
+}
+```
+
+isDispatchControlledEvent 变量表示触发的事件是否是 controlled event。
+
+### dispatchEventWithBatch
+
+* 判断事件属于什么类型，如果是 controlled event，让 isDispatchControlledEvent 为 true。如果是 interactive event, 让 isBatchingInteractiveUpdates 为 true。不管是什么类型的事件，让 isBatchingUpdates 为 true。
+* 在 try 语句块中调用 dispatchEvent，实际上会调用事件绑定的回调函数，调用 this.setState。由于在 requestWork 中会判断 isBatchingUpdates 是否为真，如果为真则直接返回。所以并不会导致更新。
+* 在 finally 语句块中判断触发的事件是否为 controlled event，如果是则调用 performSyncWork 同步渲染。
+否则调用 scheduleCallbackWithExpirationTime 异步渲染。
+
+现在再运行项目，点击 - 或 + 按钮：
+![click](Images/event_click.PNG)
+
+可以看到触发了 computeInteractiveExpiration，而且只触发一次 scheduleCallbackWithExpirationTime。后面可能会因为耗尽了空闲时间而再次调用 scheduleCallbackWithExpirationTime。 
+
+在文本框中输入字符：
+![change](Images/event_change.PNG)
+可以看到调用了 performSyncWork。
+
+[下一章](ReactCore..md)
