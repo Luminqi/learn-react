@@ -8,11 +8,11 @@
 ## Guide
 * [简介](/Guide/Introduction.md)
 * [实现自定义的渲染器](/Guide/CustomRenderer.md)
-* [实现Fiber架构 I](/Guide/Fiber_part1.md)
-* [实现Fiber架构 II](/Guide/Fiber_part2.md)
+* [实现 Fiber 架构 I](/Guide/Fiber_part1.md)
+* [实现 Fiber 架构 II](/Guide/Fiber_part2.md)
 * [实现事件处理](Guide/Event.md)
-* [实现React Core API](Guide/ReactCore.md)
-* [实现Suspense]
+* [实现 React Core API](Guide/ReactCore.md)
+* [实现 Suspense](Guide/Suspense)
 
 ## Links
 * [fresh-async-react](https://github.com/sw-yx/fresh-async-react)

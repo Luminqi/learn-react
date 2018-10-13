@@ -11,7 +11,7 @@ React Core 提供了 React.Component, React.createElement, React.Fragment 等等
 
 ### React.createElement
 
-我们写下的 JSX 实际上会被 Baebl 转译成调用 React.createElement 的结果。而 React.createElement 的作用就是根据给定的类型创建 ReactElement 对象。
+我们写下的 JSX 实际上会被 Babel 转译成调用 React.createElement 的结果。而 React.createElement 的作用就是根据给定的类型创建 ReactElement 对象。
 
 关于 JSX 可以看 [WTF is JSX](https://jasonformat.com/wtf-is-jsx/) 这篇文章。
 
