@@ -50,6 +50,9 @@ const hostConfig = {
   appendChildToContainer: (container, child) => {
     container.appendChild(child)
   },
+  removeChildFromContainer: (container, child) => {
+    container.removeChild(child)
+  },
   scheduleDeferredCallback: (callback, options) => {
     requestIdleCallback(callback, options)
   },

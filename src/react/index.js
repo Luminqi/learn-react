@@ -3,7 +3,8 @@ import { Component } from './ReactComponent'
 
 const React = {
   Component,
-  createElement
+  createElement,
+  Suspense: Symbol.for('react.suspense')
 }
 
 export default React

@@ -14,11 +14,14 @@ import {
   ClassComponent,
   HostRoot, 
   HostComponent,
+  SuspenseComponent
 } from '../shared/ReactWorkTags'
 import {
   NoEffect,
   Placement,
   Update,
+  Deletion,
+  DidCapture,
   Incomplete,
 } from '../shared/ReactSideEffectTags'
 import { traverseTwoPhase } from '../shared/ReactTreeTraversal'
@@ -32,6 +35,7 @@ function Reconciler (hostConfig) {
   const scheduleDeferredCallback = hostConfig.scheduleDeferredCallback
   const prepareUpdate = hostConfig.prepareUpdate
   const appendChildToContainer = hostConfig.appendChildToContainer
+  const removeChildFromContainer = hostConfig.removeChildFromContainer
   const commitUpdate = hostConfig.commitUpdate
 
 
@@ -153,7 +157,6 @@ function Reconciler (hostConfig) {
   }
 
   function scheduleCallbackWithExpirationTime(root, expirationTime) {
-    console.log('scheduleCallbackWithExpirationTime')
     const currentMs = now() - originalStartTimeMs
     const expirationTimeMs = expirationTimeToMs(expirationTime)
     const timeout = expirationTimeMs - currentMs
@@ -161,12 +164,10 @@ function Reconciler (hostConfig) {
   }
 
   function performSyncWork() {
-    console.log('performSyncWork')
     performWork(null)
   }
 
   function performAsyncWork (dl) {
-    console.log('performAsyncWork')
     performWork(dl)
   }
 
@@ -192,7 +193,6 @@ function Reconciler (hostConfig) {
       }
     }
     if (scheduledRoot) {
-      console.log('run out of time, schedule a new callback')
       scheduleCallbackWithExpirationTime(
         scheduledRoot,
         scheduledRoot.expirationTime,
@@ -285,12 +285,57 @@ function Reconciler (hostConfig) {
       nextRenderExpirationTime = expirationTime
       nextUnitOfWork = createWorkInProgress(root.current, null, nextRenderExpirationTime)
     }
-    workLoop(isYieldy) 
+    do {
+      try {
+        workLoop(isYieldy)
+      } catch (thrownValue) {
+        const sourceFiber = nextUnitOfWork
+        const returnFiber = sourceFiber.return
+        throwException(root, returnFiber, sourceFiber, thrownValue, nextRenderExpirationTime)
+        nextUnitOfWork = completeUnitOfWork(sourceFiber)
+        continue
+      }
+      break
+    } while (true) 
     isWorking = false
     if (nextUnitOfWork !== null) {
       return
     }
     root.finishedWork = root.current.alternate
+  }
+
+  function throwException(root, returnFiber, sourceFiber, value, renderExpirationTime) {
+    sourceFiber.effectTag |= Incomplete
+    sourceFiber.firstEffect = sourceFiber.lastEffect = null
+    if (
+      value !== null &&
+      typeof value === 'object' &&
+      typeof value.then === 'function'
+    ) {
+      const thenable = value
+      let workInProgress = returnFiber
+      do {
+        if (workInProgress.tag === SuspenseComponent) {
+          const onResolve = retrySuspendedRoot.bind(
+            null,
+            root,
+            workInProgress
+          )
+          thenable.then(onResolve)
+          workInProgress.expirationTime = renderExpirationTime
+          return
+        }
+        workInProgress = workInProgress.return
+      } while (workInProgress !== null)
+    }
+  }
+  
+  function retrySuspendedRoot (root, fiber) {
+    const currentTime = requestCurrentTime()
+    const retryTime = computeExpirationForFiber(currentTime)
+    root.expirationTime = retryTime
+    scheduleWorkToRoot(fiber, retryTime)
+    requestWork(root, root.expirationTime)
   }
 
   function workLoop (isYieldy) {
@@ -326,12 +371,25 @@ function Reconciler (hostConfig) {
       case HostRoot: {
         return updateHostRoot(current, workInProgress, renderExpirationTime)
       }
-      case HostComponent:{
+      case HostComponent: {
         return updateHostComponent(current, workInProgress, renderExpirationTime)
+      }
+      case SuspenseComponent: {
+        return updateSuspenseComponent(current, workInProgress, renderExpirationTime)
       }
       default:
         throw new Error('unknown unit of work tag') 
     }
+  }
+
+  function updateSuspenseComponent (current, workInProgress, renderExpirationTime) {
+    const nextProps = workInProgress.pendingProps
+    const nextDidTimeout = (workInProgress.effectTag & DidCapture) !== NoEffect
+    const nextChildren = nextDidTimeout ? nextProps.fallback : nextProps.children
+    workInProgress.memoizedProps = nextProps
+    workInProgress.memoizedState = nextDidTimeout
+    reconcileChildren(current, workInProgress, nextChildren, renderExpirationTime)
+    return workInProgress.child
   }
 
   function get(key) {
@@ -468,6 +526,8 @@ function Reconciler (hostConfig) {
       fiberTag = ClassComponent
     } else if (typeof type === 'string') {
       fiberTag = HostComponent
+    }else {
+      fiberTag = SuspenseComponent
     }
     fiber = new FiberNode(fiberTag, pendingProps)
     fiber.type = type
@@ -495,8 +555,11 @@ function Reconciler (hostConfig) {
       const existing = useFiber(current, element.props, expirationTime)
       existing.return = returnFiber
       return existing
-    }
-    return null
+    } else {
+      const created = createFiberFromElement(element, expirationTime)
+      created.return = returnFiber
+      return created
+    } 
   }
 
   function updateSlot (returnFiber, oldFiber, newChild, expirationTime) {
@@ -506,6 +569,18 @@ function Reconciler (hostConfig) {
     return null
   }
 
+  function deleteChild (returnFiber, childToDelete) {
+    const last = returnFiber.lastEffect
+    if (last !== null) {
+      last.nextEffect = childToDelete
+      returnFiber.lastEffect = childToDelete
+    } else {
+      returnFiber.firstEffect = returnFiber.lastEffect = childToDelete
+    }
+    childToDelete.nextEffect = null
+    childToDelete.effectTag = Deletion
+  }
+
   function reconcileChildrenArray (returnFiber, currentFirstChild, newChildren, expirationTime) {
     let resultingFirstChild = null
     let previousNewFiber = null
@@ -513,6 +588,12 @@ function Reconciler (hostConfig) {
     let newIdx = 0
     for (; oldFiber !== null && newIdx < newChildren.length; newIdx ++) {
       let newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIdx], expirationTime)
+      if (shouldTrackSideEffects) {
+        if (oldFiber && newFiber.alternate === null) {
+          deleteChild(returnFiber, oldFiber)
+          newFiber.effectTag = Placement
+        }
+      }
       if (resultingFirstChild === null) {
         resultingFirstChild = newFiber
       } else {
@@ -620,12 +701,14 @@ function Reconciler (hostConfig) {
             markUpdate(workInProgress)
           }
         } else {
-          //initial pass
           const _instance = createInstance(type, newProps, workInProgress)
           appendAllChildren(_instance, workInProgress)
           finalizeInitialChildren(_instance, newProps)
           workInProgress.stateNode = _instance
         }
+        break
+      }
+      case SuspenseComponent: {
         break
       }
       default: {
@@ -640,35 +723,55 @@ function Reconciler (hostConfig) {
       const current = workInProgress.alternate
       const returnFiber = workInProgress.return
       const siblingFiber = workInProgress.sibling
-      completeWork(current, workInProgress)
-      if (returnFiber !== null &&
-        (returnFiber.effectTag & Incomplete) === NoEffect) {
-          if (returnFiber.firstEffect === null) {
-            returnFiber.firstEffect = workInProgress.firstEffect
-          }
-          if (workInProgress.lastEffect !== null) {
-            if (returnFiber.lastEffect !== null) {
-              returnFiber.lastEffect.nextEffect = workInProgress.firstEffect
+      if ((workInProgress.effectTag & Incomplete) === NoEffect) {
+        completeWork(current, workInProgress)
+        if (returnFiber !== null &&
+          (returnFiber.effectTag & Incomplete) === NoEffect) {
+            if (returnFiber.firstEffect === null) {
+              returnFiber.firstEffect = workInProgress.firstEffect
             }
-            returnFiber.lastEffect = workInProgress.lastEffect
-          }
-          const effectTag = workInProgress.effectTag
-          if (effectTag >= Placement) {
-            if (returnFiber.lastEffect !== null) {
-              returnFiber.lastEffect.nextEffect = workInProgress
-            } else {
-              returnFiber.firstEffect = workInProgress
+            if (workInProgress.lastEffect !== null) {
+              if (returnFiber.lastEffect !== null) {
+                returnFiber.lastEffect.nextEffect = workInProgress.firstEffect
+              }
+              returnFiber.lastEffect = workInProgress.lastEffect
             }
-            returnFiber.lastEffect = workInProgress
+            const effectTag = workInProgress.effectTag
+            if (effectTag >= Placement) {
+              if (returnFiber.lastEffect !== null) {
+                returnFiber.lastEffect.nextEffect = workInProgress
+              } else {
+                returnFiber.firstEffect = workInProgress
+              }
+              returnFiber.lastEffect = workInProgress
+            }
           }
+        if (siblingFiber !== null) {
+          return siblingFiber;
+        } else if (returnFiber !== null) {
+          workInProgress = returnFiber
+          continue
+        } else {
+          return null
         }
-      if (siblingFiber !== null) {
-        return siblingFiber
-      } else if (returnFiber !== null) {
-        workInProgress = returnFiber
-        continue
       } else {
-        return null
+        if (workInProgress.tag === SuspenseComponent) {
+          const effectTag = workInProgress.effectTag
+          workInProgress.effectTag = effectTag & ~Incomplete | DidCapture
+          return workInProgress
+        }
+        if (returnFiber !== null) {
+          returnFiber.firstEffect = returnFiber.lastEffect = null
+          returnFiber.effectTag |= Incomplete
+        }
+        if (siblingFiber !== null) {
+          return siblingFiber
+        } else if (returnFiber !== null) {
+          workInProgress = returnFiber
+          continue
+        } else {
+          return null
+        }
       }
     }
   }
@@ -736,9 +839,44 @@ function Reconciler (hostConfig) {
         }
         return
       }
+      case SuspenseComponent: {
+        return
+      }
       default: {
         throw new Error('This unit of work tag should not have side-effects')
       }
+    }
+  }
+
+  function commitDeletion (current) {
+    const parentFiber = getHostParentFiber(current)
+    const parent = parentFiber.tag === HostRoot ? parentFiber.stateNode.containerInfo : parentFiber.stateNode
+    let node = current
+    while (true) {
+      if (node.tag === HostComponent) {
+        removeChildFromContainer(parent, node.stateNode) 
+      } else if (node.child !== null) {
+        node.child.return = node
+        node = node.child
+        continue
+      }
+      if (node === current) {
+        break
+      }
+      while (node.sibling === null) {
+        if (node.return === null || node.return === current) {
+          break
+        }
+        node = node.return
+      }
+      node.sibling.return = node.return
+      node = node.sibling
+    }
+    current.return = null
+    current.child = null
+    if (current.alternate) {
+      current.alternate.child = null;
+      current.alternate.return = null;
     }
   }
 
@@ -746,7 +884,7 @@ function Reconciler (hostConfig) {
     let nextEffect = firstEffect
     while (nextEffect !== null) {
       const effectTag = nextEffect.effectTag
-      switch(effectTag & (Placement | Update)) {
+      switch(effectTag & (Placement | Update | Deletion)) {
         case Placement: {
           commitPlacement(nextEffect)
           nextEffect.effectTag &= ~Placement
@@ -756,8 +894,12 @@ function Reconciler (hostConfig) {
           commitWork(nextEffect)
           break
         }
+        case Deletion: {
+          commitDeletion(nextEffect)
+          break
+        }
       }
-      nextEffect = nextEffect.nextEffect
+      nextEffect = nextEffect.nextEffect;
     }    
   }
 
@@ -773,8 +915,6 @@ function Reconciler (hostConfig) {
   }
 
   function dispatchEventWithBatch (nativeEvent) {
-    console.log('dispatchEventWithBatch')
-    console.log('nativeEvent.type: ', nativeEvent.type)
     const type = nativeEvent.type
     let previousIsBatchingInteractiveUpdates = isBatchingInteractiveUpdates
     let previousIsBatchingUpdates = isBatchingUpdates
@@ -788,20 +928,17 @@ function Reconciler (hostConfig) {
     isBatchingUpdates = true
     
     try {
-      return dispatchEvent(nativeEvent) // why should we return a void func
+      return dispatchEvent(nativeEvent) 
     } finally {
-      console.log('before leaving event handler')
       isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates
       isBatchingUpdates = previousIsBatchingUpdates
       if (!isBatchingUpdates && !isRendering) {
         if (isDispatchControlledEvent) {
-          //performSyncWork
           isDispatchControlledEvent = previousIsDispatchControlledEvent
-          if (scheduledRoot) { // if event triggers update
+          if (scheduledRoot) {
             performSyncWork()
           }  
         } else {
-          //performAysncWork
           if (scheduledRoot) {
             scheduleCallbackWithExpirationTime(scheduledRoot, scheduledRoot.expirationTime)
           }
@@ -811,12 +948,10 @@ function Reconciler (hostConfig) {
   }
   
   function dispatchEvent (nativeEvent) {
-    console.log('dispatchEvent')
     let listeners = []
     const nativeEventTarget = nativeEvent.target || nativeEvent.srcElement
     const targetInst = nativeEventTarget.internalInstanceKey
     traverseTwoPhase(targetInst, accumulateDirectionalDispatches.bind(null, listeners), nativeEvent)
-    console.log('listeners: ', listeners)
     listeners.forEach(listener => listener(nativeEvent))
   }
   
