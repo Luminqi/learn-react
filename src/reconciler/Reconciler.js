@@ -602,7 +602,6 @@ function throwException(root, returnFiber, sourceFiber, value, renderExpirationT
           )
           console.log('thenable: ', thenable)
           thenable.then(onResolveOrReject, onResolveOrReject)
-          workInProgress.effectTag |= ShouldCapture
           workInProgress.expirationTime = renderExpirationTime
           return
         }
@@ -624,7 +623,7 @@ function renderRoot (root, isYieldy) {
     nextUnitOfWork = createWorkInProgress(root.current, null, nextRenderExpirationTime)
   }
   do {
-    try{
+    try {
       workLoop(isYieldy)
     } catch (thrownValue) {
       console.log('thrownValue: ', thrownValue)
@@ -722,15 +721,6 @@ function updatePlaceholderComponent (current, workInProgress, renderExpirationTi
   // and we timed out, render the placeholder state.
   const alreadyCaptured = (workInProgress.effectTag & DidCapture) === NoEffect
   const nextDidTimeout = !alreadyCaptured
-  if (nextDidTimeout) {
-    // If the timed-out view commits, schedule an update effect to record
-    // the committed time.
-    workInProgress.effectTag |= Update
-  } else {
-    // The state node points to the time at which placeholder timed out.
-    // We can clear it once we switch back to the normal children.
-    workInProgress.stateNode = null
-  }
   const nextChildren = nextDidTimeout ? nextProps.fallback : nextProps.children
   workInProgress.memoizedProps = nextProps
   workInProgress.memoizedState = nextDidTimeout
@@ -1280,11 +1270,8 @@ function unwindWork (workInProgress) {
   switch (workInProgress.tag) {
     case PlaceholderComponent: {
       const effectTag = workInProgress.effectTag
-      if (effectTag & ShouldCapture) {
-        workInProgress.effectTag = (effectTag & ~ShouldCapture) | DidCapture
-        return workInProgress
-      }
-      return null
+       workInProgress.effectTag = effectTag | DidCapture
+      return workInProgress
     }
     default: {
       return null
@@ -1354,17 +1341,10 @@ function completeUnitOfWork (workInProgress) {
         return null
       }
     } else {
-      // This fiber did not complete because something threw. Pop values off
-      // the stack without entering the complete phase. If this is a boundary,
-      // capture values if possible.
-      const next = unwindWork(workInProgress)
-      if (next !== null) {
-        // If completing this work spawned new work, do that next. We'll come
-        // back here again
-        // Since we're restarting, remove anything that is not a host effect
-        // from the effect tag.
-        next.effectTag &= HostEffectMask
-        return next
+      if (workInProgress.tag === PlaceholderComponent) {
+        const effectTag = workInProgress.effectTag
+        workInProgress.effectTag = effectTag & ~Incomplete | DidCapture
+        return workInProgress
       }
       if (returnFiber !== null) {
         // Mark the parent fiber as incomplete and clear its effect list.
