@@ -347,12 +347,12 @@ function retrySuspendedRoot (root, fiber) {
 }
 ```
 
-** renderRoot **
+**renderRoot**
 
 * 在 renderRoot 中，将 workLoop 放在 try 语句块中，如果抛出 promise ，将 promise 传入 catch 语句块。
 * 如果有 promise 被抛出，执行完 throwException 和 completeUnitOfWork 后，将再次执行 workLoop。
 
-** throwException **
+**throwException**
 
 * 传入 throwException 的 sourceFiber 参数是抛出 promise 的 fiber，将其标记上 Incomplete 标签，清空它的 effect list。
 * 传入 throwException 的 value 参数即是抛出的 promise。在 promise 上绑定一个 resolves 时执行的函数 retrySuspendedRoot。
@@ -426,7 +426,7 @@ function completeUnitOfWork (workInProgress) {
 }
 ```
 
-** completeUnitOfWork **
+**completeUnitOfWork**
 
 * 当抛出 promise 的 fiber 没有完成时，会将这个 fiber 的 returnFiber 标记为 Incomplete。
 * 所以当 complete 这个 returnFiber 时，会再次到未完成的分支。
