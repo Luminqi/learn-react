@@ -788,20 +788,18 @@ function Reconciler (hostConfig) {
     isBatchingUpdates = true
     
     try {
-      return dispatchEvent(nativeEvent) // why should we return a void func
+      return dispatchEvent(nativeEvent)
     } finally {
       console.log('before leaving event handler')
       isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates
       isBatchingUpdates = previousIsBatchingUpdates
       if (!isBatchingUpdates && !isRendering) {
         if (isDispatchControlledEvent) {
-          //performSyncWork
           isDispatchControlledEvent = previousIsDispatchControlledEvent
-          if (scheduledRoot) { // if event triggers update
+          if (scheduledRoot) {
             performSyncWork()
           }  
         } else {
-          //performAysncWork
           if (scheduledRoot) {
             scheduleCallbackWithExpirationTime(scheduledRoot, scheduledRoot.expirationTime)
           }
