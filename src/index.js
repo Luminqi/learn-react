@@ -1,6 +1,6 @@
-import React from './react'
-import CustomDom from './custom-dom'
-import './index.css'
-import App from './App'
+import React from './react';
+import { CustomDom } from './CustomDom';
+import './index.css';
+import App from './App';
 
-CustomDom.render(<App />, document.getElementById('root'))
+CustomDom.render(<App />, document.getElementById('root'));

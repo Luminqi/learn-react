@@ -1046,7 +1046,7 @@ function commitWork (finishedWork) {
 }
 ```
 
-commit 阶段的逻辑并不复杂。首先调用 completeRoot 重置 root.finishedWork 和 scheduledRoot，然后调用 commitRoot。在 commitRoot 中我忽略了生命周期函数的实现。
+commit 阶段的逻辑并不复杂。首先调用 completeRoot 重置 root.finishedWork 和 scheduledRoot，然后调用 commitRoot。注意在 commitRoot 中，在修改了 DOM 之后，root.current = finishedWork 将已经完成的 work-in-progress fiber 树变成了 current fiber 树。我忽略了 commitRoot 中的生命周期函数的实现。
 
 最后运行项目
 

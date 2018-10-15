@@ -391,7 +391,7 @@ function completeUnitOfWork (workInProgress) {
           }
         }
       if (siblingFiber !== null) {
-        return siblingFiber;
+        return siblingFiber
       } else if (returnFiber !== null) {
         workInProgress = returnFiber
         continue
@@ -540,7 +540,7 @@ function commitAllHostEffects (firstEffect) {
         break
       }
     }
-    nextEffect = nextEffect.nextEffect;
+    nextEffect = nextEffect.nextEffect
   }    
 }
 
@@ -580,8 +580,8 @@ function commitDeletion (current) {
   current.return = null
   current.child = null
   if (current.alternate) {
-    current.alternate.child = null;
-    current.alternate.return = null;
+    current.alternate.child = null
+    current.alternate.return = null
   }
 }
 ```
@@ -589,7 +589,7 @@ function commitDeletion (current) {
 修改 App.js
 
 ```javascript
-import React from './react';
+import React from './react'
 import { createCache, createResource } from './cache/ReactCache'
 
 const cache = createCache()

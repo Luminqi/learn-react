@@ -9,7 +9,6 @@ export function createCache () {
       }
       let record = recordCache.get(key)
       if (record === undefined) {
-        // This record does not already exist.
         const suspender = loadResource(key)
         suspender.then(value => {
           recordCache.set(key, value)

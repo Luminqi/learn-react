@@ -10,9 +10,10 @@
 * [实现自定义的渲染器](/Guide/CustomRenderer.md)
 * [实现 Fiber 架构 I](/Guide/Fiber_part1.md)
 * [实现 Fiber 架构 II](/Guide/Fiber_part2.md)
-* [实现事件处理](Guide/Event.md)
-* [实现 React Core API](Guide/ReactCore.md)
-* [实现 Suspense](Guide/Suspense.md)
+* [实现事件处理](/Guide/Event.md)
+* [实现 React Core API](/Guide/ReactCore.md)
+* [实现 Suspense](/Guide/Suspense.md)
+* [实现生命周期函数](/Guide/LifeCycles.md)
 
 ## Links
 * [fresh-async-react](https://github.com/sw-yx/fresh-async-react)

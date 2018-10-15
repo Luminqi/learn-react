@@ -40,7 +40,6 @@ export function enqueueUpdate (fiber, update) {
 }
 
 function getStateFromUpdate (update, prevState) {
-  console.log('getStateFromUpdate')
   const partialState = update.payload
   if (partialState === null || partialState === undefined) {
     // Null and undefined are treated as no-ops.
@@ -51,13 +50,11 @@ function getStateFromUpdate (update, prevState) {
 }
 
 export function processUpdateQueue (workInProgress, queue) {
-  console.log('processUpdateQueue')
   // Iterate through the list of updates to compute the result.
   let update = queue.firstUpdate
   let resultState = queue.baseState
   while (update !== null) {
     resultState = getStateFromUpdate(update, resultState)
-    console.log('resultState: ', resultState)
     update = update.next
   }
   queue.baseState = resultState

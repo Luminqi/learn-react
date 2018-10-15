@@ -36,7 +36,6 @@ export const LOW_PRIORITY_EXPIRATION = 5000
 export const LOW_PRIORITY_BATCH_SIZE = 250
 
 export function computeAsyncExpiration (currentTime) {
-  console.log('computeAsyncExpiration')
   return computeExpirationBucket(
     currentTime,
     LOW_PRIORITY_EXPIRATION,
@@ -59,7 +58,6 @@ export const HIGH_PRIORITY_EXPIRATION = 500
 export const HIGH_PRIORITY_BATCH_SIZE = 100
 
 export function computeInteractiveExpiration (currentTime) {
-  console.log('computeInteractiveExpiration')
   return computeExpirationBucket(
     currentTime,
     HIGH_PRIORITY_EXPIRATION,

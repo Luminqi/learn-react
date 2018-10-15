@@ -22,15 +22,6 @@
   font-size: large;
 }
 
-.button-container {
-  display: flex;
-  justify-content: center;
-}
-
-.counter-text {
-  margin: 0 10px;
-}
-
 @keyframes App-logo-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

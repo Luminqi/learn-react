@@ -154,19 +154,18 @@ type Fiber = {|
   _debugIsCurrentlyTiming?: boolean,
 |};
 ```
-React 内部用了flow 作为类型检查。我会介绍下面这些属性，其他的属性不会包含在SimpleReact中。
+React 内部用了flow 作为类型检查。我会介绍下面这些属性。
 
 ### tag
 一个 fiber 对应了一个节点，节点可能是用户定义的组件 &lt;App&gt;，也可能是原生节点&lt;div&gt;。所以 fiber 也有不同的类型，而 tag 代表了 fiber 的类型。可能的类型在 [ReactWorkTags.js](https://github.com/facebook/react/blob/master/packages/shared/ReactWorkTags.js) 中。
-为了简化，SimpleReact 将只支持 ClassComponent，HostRoot， HostComponent 类型
+为了简化，本项目将只支持 ClassComponent，HostRoot， HostComponent 类型
 * ClassComponent：表示用户自定义的 class 组件的 fiber
 * HostRoot：表示根节点的 fiber，根节点就是调用 ReactDOM.render 时传入的第二个参数 container。
 * HostComponent: 表示特定环境中的原生节点的 fiber，如 DOM 中 &lt;div&gt;, Native 中的 &lt;View&gt;
 
 ### key
 
-创建元素数组时需要包含的特殊字符串， 在某些元素被增加或删除的时候帮助 React 识别哪些元素发生了变化。为了简化，
-SimpleReact 不会使用 key 作为识别变化的依据。
+创建元素数组时需要包含的特殊字符串， 在某些元素被增加或删除的时候帮助 React 识别哪些元素发生了变化。为了简化，本项目不会使用 key 作为识别变化的依据。
 
 ### type
 
