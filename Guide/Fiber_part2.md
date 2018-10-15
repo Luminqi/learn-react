@@ -782,6 +782,10 @@ function createFiberFromElement (element, expirationTime) {
 
 需要注意的是传入这两个函数的 newChild 参数应是一个 ReactElement 对象。
 
+### createFiberFromElement
+
+生成一个 ReactElement 对象相应的 fiber，注意区分不同的 tag。
+
 ```javascript
 function updateHostRoot (current, workInProgress, renderExpirationTime) {
   const updateQueue = workInProgress.updateQueue
