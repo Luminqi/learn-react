@@ -306,7 +306,7 @@ type BaseFiberRootProperties = {|
 
 需要这些优先级的区分，是因为一个 root 中可以同时有多个需要被完成的工作，这些工作的完成期限可能各不相同。比如说，组件抛出了 promise， 还未被 resolve， 这时候 root 下的另外一个组件又被触发了状态更新；或者高优先级的工作打断了低优先级的工作。
 
-为了简化，我会忽略这些属性。我假设**在无论什么情况下，root 下最多存在一个待完成的工作**。这意味着，一旦我们触发了状态更新，直到这个更新被完成了，不会有新的更新被触发。所以不需要考虑低优先级被高优先级的工作打断之后如何恢复的问题。实际上 React 直到现在(2018.10.1)还没有完全实现 resume。 最新的进展可以关注官方[Releasing Time Slicing](https://github.com/facebook/react/issues/13306)。
+为了简化，我会忽略这些属性。我假设**在无论什么情况下，root 下最多存在一个待完成的工作**。这意味着，一旦我们触发了状态更新，直到这个更新被完成了，不会有新的更新被触发。所以不需要考虑低优先级被高优先级的工作打断之后如何恢复的问题。实际上 React 直到现在(2018.10.1)还没有完全实现 resume。 最新的进展可以关注官方 [Releasing Time Slicing](https://github.com/facebook/react/issues/13306)。
 
 ### pendingCommitExpirationTime 和 finishedWork
 
@@ -337,7 +337,7 @@ function createFiberRoot (containerInfo) {
 
 ## ExpirationTime 和 UpdateQueue
 
-上面介绍 fiber 的时候已经提到了这两个属性，实际上 react 有两个单独的文件 [ReactFiberExpirationTime.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactFiberExpirationTime.js) 和 [ReactUpdateQueue.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactUpdateQueue.js)定义它们。
+上面介绍 fiber 的时候已经提到了这两个属性，实际上 react 有两个单独的文件 [ReactFiberExpirationTime.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactFiberExpirationTime.js) 和 [ReactUpdateQueue.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactUpdateQueue.js) 定义它们。
 作为基础，我觉得有必要先介绍一下它们。
 
 我会直接引用 ReactFiberExpirationTime.js，因为实际上理解它并不难，我只简单地介绍一下其中的两个函数。

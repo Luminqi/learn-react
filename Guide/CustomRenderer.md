@@ -97,7 +97,7 @@ Renderers use injection to pass the host internal class to the reconciler. For e
 ```
 hostConfig 目前只是一个空的对象，我们将会在下面一步一步完善它。
 CustomDom 是用来替换 ReacDom 的([ReactDom的源码](https://github.com/facebook/react/blob/master/packages/react-dom/src/client/ReactDOM.js))
-注意我们已经做了很多简化工作，我们只保留了 ReactDom 的 render 函数，而且忽略了 render 函数可能传入的第三个 callback 参数。另外注意异步模式默认是不开启的，我们需要令 isConcurrent = true。当我自己实现了 createContainer
+注意我们已经做了很多简化工作，只保留了 ReactDom 的 render 函数，而且忽略了 render 函数可能传入的第三个 callback 参数。另外注意异步模式默认是不开启的，我们需要令 isConcurrent = true。当我自己实现了 createContainer
 函数的时候，我会忽略 isConcurrent 参数， 因为我默认它是 true。
 
 本来异步 React 是叫 Async React，但是现在改为叫 Concurrent React 了， 有兴趣可以看看 dan 在 twitter 上的[讨论](https://twitter.com/dan_abramov/status/1036940380854464512)
@@ -107,6 +107,7 @@ CustomDom 是用来替换 ReacDom 的([ReactDom的源码](https://github.com/fac
 container其实就是一个Dom节点，组件会被渲染在它里面。
 
 这里已经涉及到了 Element, Root 等概念：
+
 * render 函数的第一个参数 reactElement 是一个 Element 对象，关于其介绍以及和 Component，Instance 的区别可以看 React [官方文档](https://reactjs.org/blog/2015/12/18/react-components-elements-and-instances.html)。
 简单的来说它是通过 babel 将 jsx 编译成类似于
 ```javascript
@@ -261,11 +262,11 @@ hostConfig 中所有的函数都会被 reconciler 模块用到，但是有些函
 
 这两个函数将会在组件更新的过程中扮演重要的角色。prepareUpdate 判断组件更新前后 props 是否有变化,
 在我们这个简单组件的例子中主要是判断 props.children，即判断更新前后组件的后代是否发生了变化。将变化保存起来。
-commitUpdate 会真的应用这些变化，同样在我们的例子中，只考虑children的变化，所以设置 dom 节点的 textContent 属性为新的后代。
+commitUpdate 会真的应用这些变化，同样在我们的例子中，只考虑 children 的变化，所以设置 dom 节点的 textContent 属性为新的后代。
 
 ## 结论
 
-hostConfig 并没有完全完成。当我们实现了 reconciler 模块的时候，将去掉一些不必要的函数， 加入一些必要的函数。
+hostConfig 并没有完全完成。当我们实现了 reconciler 模块的时候，将去掉一些不必要的函数，加入一些必要的函数。
 同时我需要在这里强调为了简化代码而做出的假设：
 
 **当我们考虑组件更新的时候，发生变化的只是文本节点**
@@ -274,4 +275,4 @@ hostConfig 并没有完全完成。当我们实现了 reconciler 模块的时候
 
 对于 Fiber 架构， 目前为止我们只知道 reconciler 模块将使用 scheduleDeferredCallback 来实现时间分片。
 
-[下一章节](Fiber_part1.md)
+[下一章](Fiber_part1.md)

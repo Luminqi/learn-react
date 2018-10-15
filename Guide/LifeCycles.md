@@ -2,7 +2,7 @@
 >本章代码在 master 分支中
 
 ![lifecycles](Images/lifecycles.PNG)
-                                [React lifecycle methods diagram](http://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/)
+[React lifecycle methods diagram](http://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/)
 
 关于生命周期函数的用法，官方文档描述的已经够详细了，在此不再赘述。
 

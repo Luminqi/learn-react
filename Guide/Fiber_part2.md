@@ -142,7 +142,7 @@ requestCurrentTime 函数有三种情况：
 computeExpirationForFiber 函数有四种情况：
 
 * 如果现在在 commit 阶段，返回 Sync(同步)，对应的情况：在 commit 阶段的生命周期函数中调用 this.setState。
-* 如果现在在 render 阶段，返回目前在 render 阶段的 fiber 的 expirationTime，对于的情况：在 render 阶段的生命周期函数中调用 this.setState。
+* 如果现在在 render 阶段，返回目前在 render 阶段的 fiber 的 expirationTime。
 * 如果本次更新是用户交互触发的更新，调用 computeInteractiveExpiration 计算相应的到期时间
 * 如果本次更新是普通的异步更新，调用 computeAsyncExpiration 计算相应的到期时间
 

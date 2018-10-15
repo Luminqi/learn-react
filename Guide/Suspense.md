@@ -624,3 +624,5 @@ export default App
 现在运行项目：
 
 ![suspense](Images/suspense_simple.gif)
+
+[下一章](LifeCycles.md)
