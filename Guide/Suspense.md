@@ -561,11 +561,11 @@ function commitDeletion (current) {
       continue
     }
     if (node === current) {
-      return
+      break
     }
     while (node.sibling === null) {
       if (node.return === null || node.return === current) {
-        return
+        break
       }
       node = node.return
     }

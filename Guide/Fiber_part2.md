@@ -723,12 +723,12 @@ shouldTrackSideEffects 代表了是否需要标记副作用。
 
 ### reconcileChildrenArray
 
-这是核心的函数，这里会生成新的 work-in-progress fiber，且标记上 effectTag。
+这是核心的函数，是实现 [The Diffing Algorithm](https://reactjs.org/docs/reconciliation.html#the-diffing-algorithm) 的地方。这里会生成新的 work-in-progress fiber，且标记上 effectTag。
 
-为了简化，这里我并没有考虑删除的逻辑，因为对现在这个简单的组件来说，只存在初始 mount 阶段时，placement 的逻辑和后续点击按钮触发更新时，update 的逻辑。我也没有考虑，更新时 fiber 的类型发生变化的情况，因为这里从始至终只有文本节点在发生变化。
+为了简化，这里我并没有考虑删除的逻辑，因为对现在这个简单的组件来说，只存在初始 mount 阶段时，placement 的逻辑和后续点击按钮触发更新时，update 的逻辑。我也没有考虑，更新时 fiber 的类型发生变化的情况，因为这里从始至终只有文本节点在发生变化。我也没有考虑节点发生位移的情况，这需要用到 fiber 的 index 属性。所以这里的实现仅仅满足我们的这个简单组件的情况。
 
 * oldFiber 初始化为 returnFiber 下第一个子节点。如果存在，则代表发生的是更新，调用 updateSlot。
-* oldFiber 如果一开始就不存在或者完成了 update 的循环之后仍然有新的子节点存在，调用 createChild 生成新的 work-in-progress fiber。如果需要标记副作用， 就标记上 Placement。
+* oldFiber 如果一开始就不存在或者完成了 update 的循环之后仍然有新的子节点存在，表示需要插入节点，调用 createChild 生成新的 work-in-progress fiber。如果需要标记副作用， 就标记上 Placement。
 
 ```javascript
 function updateSlot (returnFiber, oldFiber, newChild, expirationTime) {
