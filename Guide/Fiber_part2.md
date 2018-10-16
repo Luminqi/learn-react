@@ -335,7 +335,7 @@ function performWorkOnRoot(root, isExpired) {
 
 ### requestWork
 
-* scheduledRoot = root 将当前存在更新的 root 赋值给 scheduledRoot，在下面介绍的 completeRoot 函数中会会重置 scheduledRoot。
+* scheduledRoot = root 将当前存在更新的 root 赋值给 scheduledRoot，在下面介绍的 completeRoot 函数中将会重置 scheduledRoot。
 * 如果 React 正在渲染，直接返回，对应在生命周期函数中调用 this.setState。
 * 如果正在批量更新，直接返回，对应在一个事件回调中调用 this.setState。
 * 如果是同步更新，调用 performSyncWork，否则调用 scheduleCallbackWithExpirationTime。
