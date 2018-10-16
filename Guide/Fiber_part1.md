@@ -218,7 +218,7 @@ nextEffect 属性构成了所有包含副作用的 fiber 的一个单向链表�
 
 ### expirationTime
 
-代表此 fiber 自身需要被 commit，需要被挂载或更新的最后期限，超过这个期限将会导致这个 fiber 不再等待浏览器的空闲时间来完成它的工作，而是表现的和未激活异步模式一样，同步的完成它的工作。这是为了避免 starvation。
+代表此 fiber 自身需要被 commit，需要被挂载或更新的最后期限，超过这个期限将会导致这个 fiber 不再等待浏览器的空闲时间来完成它的工作，而是表现的和未激活异步模式一样，同步的完成它的工作。
 
 ### childExpirationTime
 
@@ -339,6 +339,8 @@ function createFiberRoot (containerInfo) {
 
 上面介绍 fiber 的时候已经提到了这两个属性，实际上 react 有两个单独的文件 [ReactFiberExpirationTime.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactFiberExpirationTime.js) 和 [ReactUpdateQueue.js](https://github.com/facebook/react/blob/master/packages/react-reconciler/src/ReactUpdateQueue.js) 定义它们。
 作为基础，我觉得有必要先介绍一下它们。
+
+React 用 expirationTime 代表一个未来的时间点，更新需要在这个时间点之前完成。一个更新任务的优先级就是其 expirationTime 和当前时间的差值，差值越小，代表优先级越高。这样随着时间的流逝，一个更新的优先级会越来越高，这样就可以避免 starvation, 即低优先级的工作一直被高优先级的工作打断，而无法完成。
 
 我会直接引用 ReactFiberExpirationTime.js，因为实际上理解它并不难，我只简单地介绍一下其中的两个函数。
 computeAsyncExpiration 和 computeInteractiveExpiration 这两个方程都只接受一个参数，现在的时间，返回一个未来的期限。computeAsyncExpiration 会得到更长的期限，对应的是普通的异步任务。computeInteractiveExpiration 会得到相对更短的期限，意味着要更快完成，对应的是用户交互产生的任务，比如说用户的点击事件。

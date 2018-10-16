@@ -177,6 +177,7 @@ function scheduleWorkToRoot (fiber, expirationTime) {
   let node = fiber
   while (node !== null) {
     if (node.return === null && node.tag === HostRoot) {
+      // return a FiberRoot instance
       return node.stateNode
     }
     node = node.return
@@ -328,12 +329,13 @@ function performWorkOnRoot(root, isExpired) {
 
 ### scheduleWork
 
-* 调用 scheduleWorkToRoot 更新 fiber 的 expirationTime, 如果 fiber 有 alternate，也更新 alternate 的 expirationTime。scheduleWorkToRoot 会返回此 fiber 的根 fiber。
-* 更新根 fiber 的 expirationTime。
+* 调用 scheduleWorkToRoot 更新 fiber 的 expirationTime, 如果 fiber 有 alternate，也更新 alternate 的 expirationTime。scheduleWorkToRoot 会返回此 fiber 的 root，注意这个 root 是一个 FiberRoot 实例。
+* 更新 root 的 expirationTime。
 * 调用 requestWork。
 
 ### requestWork
 
+* scheduledRoot = root 将当前存在更新的 root 赋值给 scheduledRoot，在下面介绍的 completeRoot 函数中会会重置 scheduledRoot。
 * 如果 React 正在渲染，直接返回，对应在生命周期函数中调用 this.setState。
 * 如果正在批量更新，直接返回，对应在一个事件回调中调用 this.setState。
 * 如果是同步更新，调用 performSyncWork，否则调用 scheduleCallbackWithExpirationTime。
